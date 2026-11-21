@@ -139,6 +139,7 @@ python -X utf8 src/test_homografi.py          # geometry test with a known synth
 |---|---|
 | Frame selection | `python -X utf8 src/kare_cikar.py` |
 | Synthetic data | `python -X utf8 src/sentetik.py --train 6000 --val 600` |
+| Synthetic pre-training | `python -X utf8 src/unet_keypoint.py --veri data/synthetic --ad sentetik_v1 --epoch 12` |
 | Training sets | `python -X utf8 src/veri_hazirla.py --ad v2 --sentetik 1500 --cogalt 3` |
 | Training | `python -X utf8 src/unet_keypoint.py --veri data/real_kp_v2 --ad v2 --epoch 12 --lr 3e-4 --baslangic models/unet_kp_sentetik_v1.pt` |
 | Evaluation | `python -X utf8 src/deney_degerlendir.py models/unet_kp_v2.pt` |

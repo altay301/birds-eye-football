@@ -51,7 +51,7 @@ python -X utf8 src/sentetik.py --train 6000 --val 600 # full synthetic dataset
 
 ```bash
 # own U-Net: pre-train on synthetic data
-python -X utf8 src/unet_keypoint.py --veri data/synthetic --ad sentetik_v1 --epoch 15
+python -X utf8 src/unet_keypoint.py --veri data/synthetic --ad sentetik_v1 --epoch 12
 
 # build a real training set mixed with 1500 synthetic images, real frames oversampled 3×
 python -X utf8 src/veri_hazirla.py --ad v2 --sentetik 1500 --cogalt 3
