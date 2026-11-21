@@ -1,0 +1,16 @@
+{
+  "kare": 251,
+  "oyuncu": 5081,
+  "merkez_ayak_farki_m": {
+    "medyan": 4.231357327727125,
+    "ortalama": 4.4150478189734015,
+    "p90": 6.61780393546867,
+    "en_cok": 13.467006665711507
+  },
+  "saha_icinde_oran": {
+    "ayak": 0.7673686282227908,
+    "merkez": 0.7429639834678213
+  },
+  "kare_basina_oyuncu_medyan": 20.0,
+  "top_bulunan_kare_orani": 0.5856573705179283
+}

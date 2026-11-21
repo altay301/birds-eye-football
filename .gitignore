@@ -1,0 +1,34 @@
+# --- Environment -------------------------------------------------------------
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.claude/
+
+# --- Data: broadcast videos, extracted frames and labels are NOT published -----
+# (broadcaster copyright; the labelled dataset is shared only with the course staff)
+data/*
+!data/bolme.json
+!data/raw_videos/
+data/raw_videos/*
+!data/raw_videos/kaynaklar.csv
+
+# --- Model weights and training runs (large; available on request) ------------
+models/
+runs/
+*.pt
+
+# --- Results: keep only small, self-generated artefacts ----------------------
+results/*
+!results/deneyler.json
+!results/ayak_analizi.json
+!results/ogrenme_egrisi.png
+!results/sentetik_onizleme.jpg
+!results/pitch_demo/
+!results/test_homografi/
+results/logs/
+results/sistem/
+
+# --- Misc --------------------------------------------------------------------
+notebooks/
+indirici.py
