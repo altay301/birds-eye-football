@@ -7,7 +7,7 @@ A broadcast camera is a pinhole camera: `p ~ K R (X − C)`. All pitch points li
 pitch metres. No full 3D calibration is needed **as long as the projected point is on the ground** —
 which is why the system maps each player's **foot point** (bottom-centre of the bounding box), not the box
 centre. The box centre is ~0.9 m above the grass; with a camera tilted 10–15° this shifts the player by
-0.9 / tan(12°) ≈ 4 m on the map (measured median: 4.2 m, see [results](results.md#foot-point-vs-box-centre)).
+0.9 / tan(12°) ≈ 4 m on the map (measured median: 4.2 m, see [results, §5](results.md#5-foot-point-vs-box-centre)).
 The ball in the air violates the assumption and is a known limitation.
 
 ## 2. Pitch template (`src/pitch.py`)
@@ -48,7 +48,7 @@ Split **by match**, not by frame (frames of the same match are near-duplicates �
 the same stadium never appears in two splits, non-105×68 pitches go to train, the test set spans three
 competitions and deliberately includes a hard case.
 
-### 3.4 Labelling (`src/etiketle.py`, guide in `report/etiketleme_kilavuzu.md`)
+### 3.4 Labelling (`src/etiketle.py`, protocol in [annotation_protocol.md](annotation_protocol.md))
 A custom OpenCV tool with zoom/pan, live homography error and per-point outlier highlighting.
 
 | Mode | Frames | Points | Where |

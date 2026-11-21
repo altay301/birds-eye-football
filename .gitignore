@@ -22,12 +22,16 @@ runs/
 results/*
 !results/deneyler.json
 !results/ayak_analizi.json
-!results/ogrenme_egrisi.png
+!results/guven_araligi.json
+!results/learning_curve.png
 !results/sentetik_onizleme.jpg
 !results/pitch_demo/
 !results/test_homografi/
 results/logs/
 results/sistem/
+
+# --- Course report drafts (Turkish, submitted separately) -----------------------
+report/
 
 # --- Misc --------------------------------------------------------------------
 notebooks/

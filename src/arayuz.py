@@ -3,9 +3,9 @@ arayuz.py — Projenin tarayıcıda çalışan demo arayüzü (Gradio)
 =============================================================
 
 İki sekme:
-  🎬 Maç özeti → kuş bakışı video (sistem.video_isle): video karelere ayrılır, her kare işlenir,
+  * Maç özeti → kuş bakışı video (sistem.video_isle): video karelere ayrılır, her kare işlenir,
      sonuç tarayıcıda oynayan bir videoya yazılır (results\\sistem\\arayuz\\).
-  🖼️ Tek kare: aşağıdaki adımlar + elle etiketli karelerde gerçek hata ölçümü.
+  * Tek kare: aşağıdaki adımlar + elle etiketli karelerde gerçek hata ölçümü.
 
 Bir yayın karesi seç (hazır listeden ya da kendi görüntünü yükle) → sistem:
     1) saha keypoint modeli (U-Net / YOLO-pose) → saha noktaları
@@ -130,7 +130,7 @@ def calistir(hazir_ad, yuklenen, model_ad, oyuncu_ad, esik):
     nokta_gorsel = cv2.cvtColor(noktalari_ciz(img, noktalar, kal), cv2.COLOR_BGR2RGB)
 
     if kal is None:
-        return nokta_gorsel, None, (f"### ❌ Homografi kurulamadı\n"
+        return nokta_gorsel, None, (f"### Homografi kurulamadı\n"
                                     f"Model {len(noktalar)} nokta buldu; en az 4 tutarlı nokta gerekir. "
                                     "Genelde yakın plan, tribün ya da çok az çizgi görünen karelerde olur.")
 
@@ -151,7 +151,7 @@ def calistir(hazir_ad, yuklenen, model_ad, oyuncu_ad, esik):
         h = gercek_hata(etiket_yolu, kal.H)
         if h is not None:
             ort, en, n = h
-            durum = "✅ başarılı (< 1 m)" if ort < 1 else "⚠️ başarısız (≥ 1 m)"
+            durum = "başarılı (< 1 m)" if ort < 1 else "başarısız (≥ 1 m)"
             satirlar.append(f"| **Gerçek hata** (elle etiketli {n} noktaya göre) | **{ort:.2f} m** "
                             f"(en çok {en:.2f} m) — {durum} |")
     else:
@@ -201,7 +201,7 @@ def video_calistir(hazir_ad, yuklenen, bas, sure, model_ad, oyuncu_ad, hedef_fps
 
 
 ACIKLAMA = """
-# ⚽ Yayın görüntüsünden kuş bakışı oyuncu haritası
+# Yayın görüntüsünden kuş bakışı oyuncu konumlandırma
 **Saha noktası modeli** sahadaki 35 referans noktasından görünenleri bulur →
 **RANSAC homografi** kamera görüntüsünü saha planına bağlar → **YOLO** oyuncuları bulur →
 oyuncuların **ayak noktaları** kuş bakışı haritaya taşınır.
@@ -209,7 +209,7 @@ oyuncuların **ayak noktaları** kuş bakışı haritaya taşınır.
 
 with gr.Blocks(title="Kuş Bakışı Futbol") as demo:
     gr.Markdown(ACIKLAMA)
-    with gr.Tab("🎬 Maç özeti → kuş bakışı video"):
+    with gr.Tab("Maç özeti → kuş bakışı video"):
         gr.Markdown("Bir maç özeti yükle ya da hazır listeden seç. Video karelere ayrılır, her karede saha ve "
                     "oyuncular bulunur, sonuç **kuş bakışı video** olarak oynatılır. Yakın plan ve tekrar "
                     "görüntülerinde haritada *saha görünmüyor* yazar. 1 dakikalık video ≈ 1,5–2 dakikada işlenir.")
@@ -228,14 +228,14 @@ with gr.Blocks(title="Kuş Bakışı Futbol") as demo:
                 v_fps = gr.Slider(4, 25, value=12, step=1, label="Saniyede işlenecek kare (az → hızlı, kesik)")
                 v_gorunum = gr.Radio(["Yan yana (görüntü + harita)", "Sadece kuş bakışı harita"],
                                      value="Yan yana (görüntü + harita)", label="Çıktı")
-                v_calis = gr.Button("▶ Videoyu işle", variant="primary")
+                v_calis = gr.Button("Videoyu işle", variant="primary")
                 v_ozet = gr.Markdown()
             with gr.Column(scale=2):
                 v_sonuc = gr.Video(label="Kuş bakışı video", autoplay=True)
         v_calis.click(video_calistir, [v_hazir, v_yuklenen, v_bas, v_sure, v_model, v_oyuncu, v_fps, v_gorunum],
                       [v_sonuc, v_ozet])
 
-    with gr.Tab("🖼️ Tek kare (gerçek hata ölçümüyle)"):
+    with gr.Tab("Tek kare (gerçek hata ölçümüyle)"):
         gr.Markdown("Hazır listedeki test / val kareleri eğitimde **hiç görülmedi** ve elle etiketli olduğu için "
                     "gerçek hata (metre) de hesaplanır. Test 11 ve 12 model önerisi olmadan etiketlendi "
                     "(en dürüst ölçüm).")
@@ -250,8 +250,8 @@ with gr.Blocks(title="Kuş Bakışı Futbol") as demo:
                                      label="Oyuncu tespit modeli")
                 esik = gr.Slider(0.1, 0.9, value=0.5, step=0.05, label="Nokta güven eşiği")
                 with gr.Row():
-                    rastgele = gr.Button("🎲 Rastgele kare")
-                    calis = gr.Button("▶ Çalıştır", variant="primary")
+                    rastgele = gr.Button("Rastgele kare")
+                    calis = gr.Button("Çalıştır", variant="primary")
                 ozet = gr.Markdown()
             with gr.Column(scale=2):
                 nokta_gorsel = gr.Image(label="1) Modelin bulduğu saha noktaları (numara + güven; "

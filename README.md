@@ -1,145 +1,191 @@
 # Bird's-Eye View Player Localization from Football Broadcast Images
 
-Turn a single TV broadcast frame — or a whole match highlight video — into a **top-down tactical map**
-showing where every player stands on the 105 × 68 m pitch.
+*Course project — Neural Networks, 2026*
+
+## Abstract
+
+We address the problem of recovering the metric pitch positions of football players from a single
+monocular broadcast frame. Since the playing surface is planar, the image-to-pitch mapping is a
+homography, which we estimate from automatically detected pitch landmarks. We (i) build a dataset of
+262 manually annotated broadcast frames (2,657 keypoints, 35 landmark types) from 19 matches together
+with a synthetic data generator based on a virtual broadcast camera, (ii) train a ResNet-18/U-Net
+heatmap regressor for landmark detection, (iii) estimate the homography robustly with RANSAC, and
+(iv) project player foot points, detected with an off-the-shelf YOLOv8 detector, onto a top-down pitch
+model. On two held-out matches annotated without model assistance, the landmark detector attains
+PCK@10 = 80.6 % (95 % CI 68.1–91.0) and the resulting homography localises pitch points with a mean
+error below 1 m in 86.8 % of frames (median 0.22 m), whereas a YOLO-pose baseline trained on the same
+data reaches 15.6 % and 26.3 %, respectively. A controlled learning-curve study shows that synthetic
+pre-training is statistically indistinguishable from training on all 143 real frames, and that with
+synthetic pre-training the accuracy no longer improves significantly beyond 39 real frames.
+
+## 1. Contributions
+
+1. **Dataset.** Automatic frame selection from 19 publicly available highlight videos (10,390 candidate
+   frames → 475 selected), a written annotation protocol ([docs/annotation_protocol.md](docs/annotation_protocol.md))
+   and 262 annotated frames with a match-level train/validation/test split.
+2. **Bias-controlled evaluation.** We measure confirmation bias in model-assisted annotation (66 % of
+   labels identical to the suggestion) and therefore annotate the headline test matches without model
+   suggestions.
+3. **Synthetic data.** A procedural renderer for broadcast-like views with exact labels (6,600 images).
+4. **Model comparison.** Heatmap regression (own ResNet-18/U-Net) versus keypoint regression (YOLOv8-pose)
+   under identical data and evaluation.
+5. **Learning-curve study** with matched compute budgets and paired bootstrap confidence intervals.
+6. **End-to-end system** for images and videos, including a web interface.
+
+## 2. Method
 
 ```
-broadcast frame ─┬─► pitch keypoint network (own ResNet-18 + U-Net) ─► RANSAC homography ─┐
-                 └─► YOLOv8 person/ball detection ─► jersey colour K-means (teams) ───────┴─► foot point × H ─► bird's-eye map
+frame ─┬─► landmark heatmaps (ResNet-18 + U-Net) ─► RANSAC homography H ─┐
+       └─► person/ball detection (YOLOv8) ─► team assignment (K-means) ───┴─► foot point × H ─► pitch map
 ```
 
-Neural Network course project. The keypoint model, the synthetic data generator, the labelling tools and
-the labelled dataset were all built from scratch for this project.
+* **Geometry.** For points on the ground plane the pinhole model reduces to a homography,
+  `H = K [r1 r2 −RC]`. Players are therefore projected through their foot point (bottom centre of the
+  bounding box); projecting the box centre would introduce a systematic error of 4.2 m (median, §5.4).
+* **Pitch template.** 105 × 68 m, 35 landmarks; two landmark types (centre-circle extremes, penalty-arc
+  tops) were added to avoid collinear configurations observed in close-ups.
+* **Landmark detector.** ImageNet-initialised ResNet-18 encoder, U-Net decoder with skip connections,
+  35 output heatmaps at 1/4 resolution (Gaussian targets, σ = 2), foreground-weighted MSE loss
+  `(t − h)²(1 + 20h)`, sub-pixel peak localisation by log-parabola fitting.
+* **Homography.** RANSAC over the detected landmarks, minimum of 5 inliers, rejection of degenerate
+  (collinear) inlier sets.
+* **Video.** Frame sampling at 12 fps, scene-cut detection by HSV-histogram Bhattacharyya distance,
+  exponential smoothing of `H`.
 
-> **Language note:** source code identifiers and comments are in Turkish (course requirement);
-> all documentation in this repository is in English. A glossary of the most common identifiers is in
-> [docs/usage.md](docs/usage.md#glossary-of-turkish-identifiers).
+Full description: [docs/method.md](docs/method.md).
 
----
+## 3. Data and experimental protocol
 
-## Highlights
+| Split | Matches | Annotated frames | Annotation mode |
+|---|---|---|---|
+| Train | 13 | 143 | model-assisted / pre-label + human review |
+| Validation | 3 (02, 10, 19) | 60 | model-assisted / pre-label + human review |
+| Test (with suggestions) | 1 (04) | 18 | model-assisted — reported separately |
+| **Test (suggestion-free)** | **2 (11, 12)** | **41 (397 keypoints)** | **manual + geometric proposals only** |
 
-| | |
-|---|---|
-| **Own dataset** | 19 match highlight videos → 475 automatically selected frames → **262 hand-labelled frames, 2,657 pitch keypoints** (35 keypoint types) |
-| **Synthetic data** | Virtual broadcast camera + 3D pitch renderer: 6,600 images with error-free labels |
-| **Own model** | ResNet-18 encoder + U-Net decoder predicting 35 heatmaps with sub-pixel peak refinement |
-| **Main result** | On held-out matches labelled *without* model suggestions: **PCK@10 = 80.6 %**, homography error **< 1 m in 87 % of frames** (median 0.22 m) |
-| **vs. YOLO-pose** | Same data, same test: YOLO-pose reaches only PCK@10 = 15.6 % and 26 % of frames < 1 m |
-| **Learning curve** | Synthetic pre-training is worth ≈ 140 hand-labelled frames; with it, 39 real frames already reach the plateau |
-| **Demo** | Gradio web app: upload a highlight video → bird's-eye video, or inspect single frames with ground-truth error |
+* The split is by match to prevent leakage between near-duplicate frames; venues do not overlap across splits.
+* **Metrics.** PCK@k: fraction of annotated keypoints predicted within k pixels (image width normalised to
+  1280 px; missed keypoints count as errors). *Calibration success*: a homography is found from the
+  predicted keypoints **and** the annotated keypoints, projected with it, lie on average < 1 m from their
+  true pitch positions.
+* **Uncertainty.** 95 % confidence intervals from a frame-level bootstrap (10,000 resamples, frames are the
+  sampling unit because keypoints within a frame are correlated). Model comparisons use the paired bootstrap
+  on identical resamples. Code: `src/guven_araligi.py`.
 
-![Learning curve](results/ogrenme_egrisi.png)
+## 4. Results
 
----
+### 4.1 Landmark detection and calibration (suggestion-free test set, matches 11 + 12)
 
-## How it works (short)
+| Model | Training data | PCK@10 [95 % CI] | Median error (px) | Calibration success < 1 m [95 % CI] |
+|---|---|---|---|---|
+| YOLOv8s-pose | synthetic + real | 15.6 [9.2, 22.7] | 16.3 | 26.3 [13.2, 41.0] |
+| ResNet-18/U-Net | synthetic only | 72.8 [60.4, 83.5] | 3.1 | 78.9 [65.7, 91.7] |
+| ResNet-18/U-Net | real only (143 frames) | 72.5 [58.7, 84.5] | 2.9 | 78.9 [65.0, 91.7] |
+| **ResNet-18/U-Net** | **synthetic + real** | **80.6 [68.1, 91.0]** | **2.7** | **86.8 [75.6, 97.3]** |
 
-1. **Pitch keypoints.** A U-Net predicts one heatmap per pitch landmark (corners, box corners, arc tops,
-   penalty spots, centre circle points, … 35 in total). Peaks above a confidence threshold become
-   keypoint candidates.
-2. **Homography.** Because the pitch is a plane, image ↔ pitch is a 3×3 homography `H`. It is fitted
-   with RANSAC, which discards wrongly located keypoints, and is checked for degenerate (collinear) configurations.
-3. **Players.** YOLOv8 (COCO) detects people and the ball. Players are split into two teams by K-means on
-   the median jersey colour in Lab space.
-4. **Projection.** Each player's **foot point** (bottom-centre of the box) is mapped through `H`.
-   Using the box centre instead would shift players by a median of **4.2 m** (measured, see results).
-5. **Video.** Frames are sampled at ~12 fps; scene cuts are detected with HSV-histogram distance;
-   `H` is smoothed over time with an exponential moving average; frames without a visible pitch are
-   marked instead of mapped.
+The difference between the U-Net and YOLO-pose is +65.0 points PCK@10 (paired 95 % CI [+53.5, +76.0]).
+Marginal intervals are wide because frame difficulty varies strongly; it affects all models alike, so
+comparisons are made with paired intervals. On test match 04, annotated with model suggestions, the same
+model scores PCK@10 = 89.7 % and 100 % calibration success, which quantifies the optimism of
+suggestion-based ground truth.
 
-Details: [docs/method.md](docs/method.md) · Full results: [docs/results.md](docs/results.md)
+### 4.2 Learning curve
 
----
+All runs use the same compute budget (12 epochs of ≈ 1,930 images; real frames are oversampled), nested
+subsets of at most 3 / 5 / 8 / all real frames per training match (39 / 65 / 89 / 143 frames), and are
+evaluated on the suggestion-free test set. The synthetic-only model was trained separately and is shown as
+a reference, not as a point of either curve.
 
-## Quick start
+![Learning curve and paired differences](results/learning_curve.png)
 
-Requirements: Python 3.12, an NVIDIA GPU is recommended (developed on an RTX 4070 Laptop, 8 GB),
-`ffmpeg` on `PATH` for browser-playable video output.
+*Filled markers: paired 95 % CI excludes zero; hollow markers: no significant difference.*
+
+* Synthetic pre-training improves PCK@10 by +19.9 points at 39 real frames and by +7.8 points at
+  143 real frames (both significant).
+* With synthetic pre-training, increasing the real data from 39 to 143 frames yields +1.0 point
+  (95 % CI [−1.0, +2.9]); without it, +13.1 points ([+8.4, +18.0]).
+* The synthetic-only model and the model trained on all 143 real frames without synthetic data do not
+  differ significantly (+0.3, [−4.8, +5.4]).
+
+### 4.3 Player position: foot point versus box centre
+
+On 251 frames with homographies from manual annotations (mean error < 0.5 m), projecting the bounding-box
+centre instead of the foot point displaces 5,081 players by a median of **4.2 m** (90th percentile 6.6 m),
+about twenty times the calibration error.
+
+Complete tables, detection statistics and a per-frame error analysis: [docs/results.md](docs/results.md).
+
+## 5. Limitations
+
+* Close-up and low-angle views near the goal expose too few non-collinear landmarks; calibration then fails
+  or is incorrect. Frames showing a single penalty area are ambiguous under left/right mirror symmetry.
+* Player and ball detection use a COCO-pretrained detector without football-specific fine-tuning; its
+  accuracy (mAP) is not evaluated because no box annotations are available yet. Referees are not
+  distinguished from players, and the ball is detected in 59 % of frames.
+* The video pipeline does not track players; per-frame detections cause positional jitter.
+* All points, including the ball, are assumed to lie on the ground plane.
+* The test set is small (41 frames, 2 matches); confidence intervals are reported throughout.
+
+## 6. Reproduction
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate            # Linux/macOS: source .venv/bin/activate
+.venv\Scripts\activate                       # Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu128
-python -c "import torch; print(torch.cuda.is_available())"   # GPU visible?
-python -X utf8 src/test_homografi.py   # geometry self-test with a known camera (no data needed)
+python -X utf8 src/test_homografi.py          # geometry test with a known synthetic camera
 ```
 
-Model weights and the dataset are **not** in this repository (see [Data availability](#data-availability)).
-Put the weights into `models/` and run:
+| Step | Command |
+|---|---|
+| Frame selection | `python -X utf8 src/kare_cikar.py` |
+| Synthetic data | `python -X utf8 src/sentetik.py --train 6000 --val 600` |
+| Training sets | `python -X utf8 src/veri_hazirla.py --ad v2 --sentetik 1500 --cogalt 3` |
+| Training | `python -X utf8 src/unet_keypoint.py --veri data/real_kp_v2 --ad v2 --epoch 12 --lr 3e-4 --baslangic models/unet_kp_sentetik_v1.pt` |
+| Evaluation | `python -X utf8 src/deney_degerlendir.py models/unet_kp_v2.pt` |
+| Confidence intervals | `python -X utf8 src/guven_araligi.py` |
+| Figures | `python -X utf8 src/ogrenme_egrisi_ciz.py` |
+| Inference (image / video) | `python -X utf8 src/sistem.py --model models/unet_kp_gercek_v1.pt --video match.mp4` |
+| Web interface | `python -X utf8 src/arayuz.py` |
 
-```bash
-# Web demo (video tab + single-frame tab) → http://127.0.0.1:7860
-python -X utf8 src/arayuz.py
+Hardware: NVIDIA RTX 4070 Laptop GPU (8 GB), 15 GB RAM. Exact package versions are listed in
+`requirements.txt`. Detailed instructions: [docs/usage.md](docs/usage.md). Source identifiers and comments
+are in Turkish; a glossary is provided in the usage guide.
 
-# Command line: image or video → results/sistem/
-python -X utf8 src/sistem.py --model models/unet_kp_gercek_v1.pt --goruntu my_frame.jpg
-python -X utf8 src/sistem.py --model models/unet_kp_gercek_v1.pt --video highlights.mp4 --bas 0 --sure 120
+## 7. Repository structure
+
+```
+src/        implementation (geometry, data tools, models, evaluation, system, interface)
+docs/       method, annotation protocol, results, usage
+results/    evaluation outputs (JSON) and figures generated from them
+data/       match-level split (bolme.json) and list of video sources (raw_videos/kaynaklar.csv)
 ```
 
-Every step of the pipeline (frame extraction, labelling, synthetic data, training, evaluation) is
-documented in [docs/usage.md](docs/usage.md).
+## 8. Data availability and ethics
 
----
+The source videos are publicly available highlight videos; their URLs, competitions and venues are listed
+in `data/raw_videos/kaynaklar.csv`. Broadcast footage and frames are copyrighted by the broadcasters and
+are not redistributed. The annotations and trained weights are available to the course instructors on
+request. Synthetic data can be regenerated with the provided generator. The pre-labelling procedure used
+for part of the training and validation data (§3) was approved by the course instructors; every
+annotation file records the mode by which it was produced.
 
-## Repository layout
+## References
 
-```
-src/                     all code (see table below)
-docs/                    English documentation (method, usage, results)
-report/                  course report draft and labelling guide (Turkish)
-results/                 experiment results (JSON) and self-generated figures
-data/bolme.json          train / val / test split by match
-data/raw_videos/kaynaklar.csv   source list of the 19 highlight videos (YouTube links, competition, stadium)
-requirements.txt         exact package versions used
-```
-
-| Stage | Script | Purpose |
-|---|---|---|
-| Geometry | `pitch.py` | Pitch template (FIFA 105×68 m), 35 keypoints, minimap drawing |
-| | `homografi.py` | Homography estimation (DLT + RANSAC), degeneracy checks, sign normalisation |
-| | `test_homografi.py` | Self-test with a synthetic camera and known ground truth |
-| Data | `kare_cikar.py` | Automatic frame selection from videos (pitch colour, sharpness, dHash novelty, wide-shot check) |
-| | `bolme.py` | Match-level train/val/test split (prevents leakage between frames of the same match) |
-| | `sentetik.py` | Synthetic broadcast images with exact keypoint labels |
-| | `etiketle.py` | Keypoint labelling tool (model-assisted or suggestion-free mode) |
-| | `etiket_kontrol.py` | Automatic label QA via homography consistency |
-| | `kutu_oneri.py`, `kutu_etiketle.py` | Player / goalkeeper / referee / ball box proposals and labelling tool |
-| | `veri_hazirla.py` | Converts labels to training sets (mixing synthetic data, subsetting, oversampling) |
-| Models | `unet_keypoint.py` | **Own model**: ResNet-18 + U-Net heatmap regressor, training and inference |
-| | `egit_keypoint.py` | YOLO-pose baseline training |
-| | `keypoint_tahmin.py` | Inference, suggestions for labelling, PCK evaluation |
-| | `oyuncu.py` | Player/ball detection and team assignment |
-| Evaluation | `deney_degerlendir.py` | Evaluates all models on identical splits → `results/deneyler.json` |
-| | `ogrenme_egrisi_ciz.py` | Learning-curve figure |
-| | `ayak_analizi.py` | Foot point vs. box centre analysis, detection statistics |
-| | `oneri_tutarlilik.py` | Label-free quality estimate (RANSAC inlier ratio) |
-| System | `manuel_kalibrasyon.py` | First prototype: manual clicking → homography → minimap |
-| | `sistem.py` | End-to-end automatic system for images and videos |
-| | `arayuz.py` | Gradio web interface |
-
----
-
-## Data availability
-
-* **Videos and frames** come from publicly available highlight videos on YouTube (listed with links in
-  `data/raw_videos/kaynaklar.csv`). They are copyrighted by the broadcasters and are therefore **not
-  redistributed** here.
-* **Labels** (262 frames, 2,657 keypoints) and **model weights** are available to the course staff on request.
-* **Synthetic data** can be regenerated with `python src/sentetik.py --train 6000 --val 600`.
-
-## Known limitations
-
-* Close-up and low-angle shots near the goal expose too few pitch landmarks; the homography may fail or be wrong.
-* Left/right ambiguity when only one penalty box is visible (mirror symmetry).
-* The off-the-shelf COCO detector misses the small ball in ~40 % of frames and does not distinguish referees
-  (a referee is assigned to one of the two colour clusters). A football-specific detector trained on the
-  box-labelling tool's output is the planned fix.
-* No player tracking yet: in video, player dots are re-detected every frame and may flicker.
-* The ball is assumed to be on the ground (no height estimation).
-
-## Acknowledgements
-
-Ultralytics YOLOv8, PyTorch / torchvision (ImageNet ResNet-18), OpenCV, Gradio.
-Related work that inspired the problem setup: SoccerNet camera calibration & game-state reconstruction,
-the WorldCup 2014 homography dataset (Homayounfar et al., 2017), U-Net (Ronneberger et al., 2015).
+1. Fischler, M. A., & Bolles, R. C. (1981). Random sample consensus: A paradigm for model fitting with
+   applications to image analysis and automated cartography. *Communications of the ACM*, 24(6), 381–395.
+2. Hartley, R., & Zisserman, A. (2004). *Multiple View Geometry in Computer Vision* (2nd ed.). Cambridge
+   University Press.
+3. He, K., Zhang, X., Ren, S., & Sun, J. (2016). Deep residual learning for image recognition. *CVPR*.
+4. Ronneberger, O., Fischer, P., & Brox, T. (2015). U-Net: Convolutional networks for biomedical image
+   segmentation. *MICCAI*.
+5. Tompson, J., Jain, A., LeCun, Y., & Bregler, C. (2014). Joint training of a convolutional network and a
+   graphical model for human pose estimation. *NeurIPS*.
+6. Homayounfar, N., Fidler, S., & Urtasun, R. (2017). Sports field localization via deep structured models.
+   *CVPR*.
+7. Giancola, S., Amine, M., Dghaily, T., & Ghanem, B. (2018). SoccerNet: A scalable dataset for action
+   spotting in soccer videos. *CVPR Workshops*.
+8. Somers, V., et al. (2024). SoccerNet Game State Reconstruction: End-to-end athlete tracking and
+   identification on a minimap. *CVPR Workshops*.
+9. Jocher, G., Chaurasia, A., & Qiu, J. (2023). *Ultralytics YOLOv8* [Computer software].
+   https://github.com/ultralytics/ultralytics
+10. Efron, B., & Tibshirani, R. J. (1993). *An Introduction to the Bootstrap*. Chapman & Hall.

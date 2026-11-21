@@ -72,7 +72,8 @@ On a 15 GB RAM machine keep data-loader workers ≤ 2 and never run two training
 ```bash
 python -X utf8 src/deney_degerlendir.py models/unet_kp_gercek_v1.pt models/unet_kp_v2.pt
 python -X utf8 src/deney_degerlendir.py --tablo     # print the table from results/deneyler.json
-python -X utf8 src/ogrenme_egrisi_ciz.py            # results/ogrenme_egrisi.png
+python -X utf8 src/guven_araligi.py                 # bootstrap CIs → results/guven_araligi.json
+python -X utf8 src/ogrenme_egrisi_ciz.py            # results/learning_curve.png (--dil tr: Turkish version)
 python -X utf8 src/ayak_analizi.py                  # foot point vs. box centre
 python -X utf8 src/keypoint_tahmin.py --model models/unet_kp_gercek_v1.pt --gorsel 15   # visual panel
 ```
@@ -99,9 +100,9 @@ Video options: `--alfa` temporal smoothing (1 = off), `--tolerans` frames to reu
 
 ### Web interface
 
-* **🎬 Match highlight → bird's-eye video**: choose a video from `data/raw_videos` or upload one, set start
+* **Match highlight → bird's-eye video**: choose a video from `data/raw_videos` or upload one, set start
   and duration (≤ 300 s), keypoint model, detector, processed fps and output layout (side by side or map only).
-* **🖼️ Single frame**: pick a labelled val/test frame (the true error in metres is shown) or upload any
+* **Single frame**: pick a labelled val/test frame (the true error in metres is shown) or upload any
   image; compare keypoint models live; adjust the keypoint confidence threshold.
 
 ## Glossary of Turkish identifiers
