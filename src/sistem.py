@@ -39,9 +39,11 @@ import cv2
 import numpy as np
 
 import pitch
-from homografi import HomografiSonuc, isareti_duzelt
+from homografi import HomografiSonuc, cizgileri_goruntuye_ciz, isareti_duzelt, noktalari_donustur
 from keypoint_tahmin import SahaModeli, model_yukle, oku, ransac_homografi
 from manuel_kalibrasyon import sonuc_uret
+from oyuncu import oyunculari_takip_et
+from takip import HomografiFiltresi, OyuncuTakipci, TakimAtayici
 
 PROJE = Path(__file__).resolve().parent.parent
 CIKTI = PROJE / "results" / "sistem"
@@ -122,18 +124,13 @@ class VideoYazici:
             self.cv.release()
 
 
-def video_isle(model, video: str | Path, cikti: Path, bas: float = 0, sure: float | None = None,
-               hedef_fps: float = 12, alfa: float = 0.3, tolerans: int = 6, kesme_esigi: float = 0.35,
-               yolo: str = "yolov8n.pt", sadece_harita: bool = False, genislik: int = 1280,
-               ilerleme=None) -> dict:
+def video_kareleri(video: str | Path, bas: float = 0, sure: float | None = None, hedef_fps: float = 12,
+                   kesme_esigi: float = 0.35):
     """
-    Videoyu kuş bakışı videoya çevirir.
-      hedef_fps     : saniyede kaç kare işlensin (25/60 fps'lik videonun her karesi gerekmez;
-                      12 → 60 fps videoda her 5. kare). Az → hızlı ama daha kesik.
-      kesme_esigi   : ardışık iki karenin renk histogramı farkı (Bhattacharyya, 0..1) bunu aşarsa
-                      sahne kesmesi. Ölçüm: aynı çekimde fark ≤ 0.26, gerçek kesmelerde ≥ 0.46.
-      sadece_harita : True → sadece kuş bakışı harita, False → görüntü + harita yan yana
-      ilerleme      : ilerleme(oran 0..1, mesaj) çağrılır (arayüzdeki ilerleme çubuğu için)
+    Videodan saniyede ~hedef_fps kare okur. Üretir: (img, sahne_kesmesi_mi, bilgi).
+    SAHNE KESMESİ: ardışık iki karenin renk dağılımı (HSV histogramı, Bhattacharyya uzaklığı)
+    eşiği aşarsa yayın başka kameraya geçmiştir. Ölçüm: aynı çekimde ≤ 0.26, gerçek kesmede ≥ 0.46.
+    (dHash denendi: yeşil sahada kararsız, aynı çekimde 10 sn'de 25 sahte kesme buldu.)
     """
     cap = cv2.VideoCapture(str(video))
     if not cap.isOpened():
@@ -144,38 +141,113 @@ def video_isle(model, video: str | Path, cikti: Path, bas: float = 0, sure: floa
     bas_kare = int(bas * fps)
     cap.set(cv2.CAP_PROP_POS_FRAMES, bas_kare)
     son = min(toplam, bas_kare + int(sure * fps)) if sure else toplam
-    n_hedef = max(1, (son - bas_kare + adim - 1) // adim)
-
-    yazici, kal_onceki, kayip, onceki_hash = None, None, 0, None
-    n_islenen = n_ok = n_kesme = 0
-    t0 = time.time()
-    for j in range(son - bas_kare):
-        if j % adim:
-            if not cap.grab():          # atlanan kareyi çözmeden geç (hızlı)
+    bilgi = {"fps": fps, "adim": adim, "hedef": max(1, (son - bas_kare + adim - 1) // adim)}
+    onceki = None
+    try:
+        for j in range(son - bas_kare):
+            if j % adim:
+                if not cap.grab():          # atlanan kareyi çözmeden geç (hızlı)
+                    break
+                continue
+            ok, img = cap.read()
+            if not ok:
                 break
-            continue
-        ok, img = cap.read()
-        if not ok:
-            break
-        n_islenen += 1
-        # SAHNE KESMESİ: ardışık iki karenin renk dağılımı çok farklıysa yayın başka
-        # kameraya geçmiştir → önceki homografi artık geçersiz, unut.
-        # (dHash denendi: yeşil sahada kararsız, aynı çekimde bile 10 sn'de 25 sahte kesme buldu.)
-        h = renk_histogrami(img)
-        if onceki_hash is not None and cv2.compareHist(onceki_hash, h, cv2.HISTCMP_BHATTACHARYYA) > kesme_esigi:
-            kal_onceki, kayip = None, 0
-            n_kesme += 1
-        onceki_hash = h
+            h = renk_histogrami(img)
+            kesme = onceki is not None and cv2.compareHist(onceki, h, cv2.HISTCMP_BHATTACHARYYA) > kesme_esigi
+            onceki = h
+            yield img, kesme, bilgi
+    finally:
+        cap.release()
 
-        birlesik, kal, _ = kare_isle(model, img, kal_onceki, alfa, yolo, noktalari_ciz=False)
-        if birlesik is not None:
-            kayip = 0 if kal is not kal_onceki else kayip + 1
-            if kayip > tolerans:
-                kal_onceki, birlesik = None, None
-        if birlesik is None:
+
+def video_karesi_ciz(img: np.ndarray, kal, tespitler: list, oyuncular: list[dict], iz: bool = True) -> np.ndarray:
+    """Sol: görüntü + oturtulmuş saha çizgileri + takım renkli kutular. Sağ: kuş bakışı harita (+ izler)."""
+    sol = cizgileri_goruntuye_ciz(img, kal.H_ters)
+    for t in tespitler:
+        x1, y1, x2, y2 = map(int, t.kutu)
+        renk = t.ek.get("takim_renk") or pitch.TAKIM_RENK.get(t.sinif, (0, 0, 255))
+        cv2.rectangle(sol, (x1, y1), (x2, y2), tuple(int(c) for c in renk), 2)
+        cv2.rectangle(sol, (x1, y1), (x2, y2), (0, 0, 0), 1)
+    harita = pitch.saha_ciz()
+    h, w = img.shape[:2]
+    gorus = noktalari_donustur(kal.H, [[0, h], [w, h], [w, 0], [0, 0]])
+    if not np.isnan(gorus).any():               # kameranın gördüğü alan
+        poligon = np.array([pitch.metre_to_piksel(x, y) for x, y in
+                            np.clip(gorus, [-50, -50], [155, 118])], np.int32)
+        katman = harita.copy()
+        cv2.fillPoly(katman, [poligon], (255, 255, 255))
+        harita = cv2.addWeighted(katman, 0.15, harita, 0.85, 0)
+    if iz:                                      # son ~1.5 sn'lik hareket izi
+        for o in oyuncular:
+            if o.get("sinif") != "top" and len(o.get("iz", [])) > 1:
+                p = np.array([pitch.metre_to_piksel(x, y) for x, y in o["iz"]], np.int32)
+                renk = tuple(int(c) for c in (o.get("renk") or (200, 200, 200)))
+                cv2.polylines(harita, [p], False, renk, 2, cv2.LINE_AA)
+    harita = pitch.oyunculari_ciz(harita, oyuncular)
+    olcek = sol.shape[0] / harita.shape[0]
+    harita = cv2.resize(harita, (int(harita.shape[1] * olcek), sol.shape[0]))
+    return np.hstack([sol, np.full((sol.shape[0], ARA, 3), 255, np.uint8), harita])
+
+
+class VideoHatti:
+    """
+    Videoda kare kare: saha noktaları → RANSAC → (filtre) → tespit + takip → saha konumu →
+    takım ataması → (konum yumuşatma). yumusat=False → her kare bağımsız (karşılaştırma için).
+    """
+
+    def __init__(self, model, yolo: str = "yolov8n.pt", yumusat: bool = True):
+        self.model, self.yolo, self.yumusat = model, yolo, yumusat
+        self.filtre, self.takim, self.takipci = HomografiFiltresi(), TakimAtayici(), OyuncuTakipci()
+        self.ilk = True
+
+    def isle(self, img: np.ndarray, kesme: bool):
+        """Döner: (kal, tespitler (sahadakiler), harita oyuncuları). kal None → saha yok."""
+        if kesme:
+            self.filtre.sifirla(), self.takim.sifirla(), self.takipci.sifirla()
+        kal_ham = ransac_homografi(self.model.tahmin(img))
+        kal = self.filtre.guncelle(kal_ham, img.shape) if self.yumusat else kal_ham
+        tespitler = oyunculari_takip_et(img, self.yolo, sifirla=self.ilk or kesme)
+        self.ilk = False
+        if kal is None:
+            return None, [], []
+        ayak = np.array([t.ayak for t in tespitler]).reshape(-1, 2)
+        saha = noktalari_donustur(kal.H, ayak) if len(tespitler) else np.empty((0, 2))
+        sahadakiler = []
+        for t, (x, y) in zip(tespitler, saha):
+            if np.isfinite(x) and -2 <= x <= pitch.SAHA_UZUNLUK + 2 and -2 <= y <= pitch.SAHA_GENISLIK + 2:
+                t.saha = (float(x), float(y))
+                sahadakiler.append(t)
+        self.takim.ata(sahadakiler)
+        if self.yumusat:
+            oyuncular = self.takipci.guncelle(sahadakiler)
+        else:
+            oyuncular = [{"x": t.saha[0], "y": t.saha[1], "sinif": t.sinif, "renk": t.ek.get("takim_renk"),
+                          "id": t.ek.get("id")} for t in sahadakiler]
+        return kal, sahadakiler, oyuncular
+
+
+def video_isle(model, video: str | Path, cikti: Path, bas: float = 0, sure: float | None = None,
+               hedef_fps: float = 12, kesme_esigi: float = 0.35, yolo: str = "yolov8n.pt",
+               sadece_harita: bool = False, genislik: int = 1280, yumusat: bool = True,
+               ilerleme=None) -> dict:
+    """
+    Videoyu kuş bakışı videoya çevirir.
+      hedef_fps     : saniyede kaç kare işlensin (12 → 60 fps videoda her 5. kare)
+      yumusat       : homografi filtresi + oyuncu takibi/yumuşatma (False: her kare bağımsız)
+      sadece_harita : True → sadece kuş bakışı harita, False → görüntü + harita yan yana
+      ilerleme      : ilerleme(oran 0..1, mesaj) çağrılır (arayüzdeki ilerleme çubuğu için)
+    """
+    hat = VideoHatti(model, yolo, yumusat)
+    yazici, n_islenen, n_ok, n_kesme, bilgi = None, 0, 0, 0, {}
+    t0 = time.time()
+    for img, kesme, bilgi in video_kareleri(video, bas, sure, hedef_fps, kesme_esigi):
+        n_islenen += 1
+        n_kesme += kesme
+        kal, tespitler, oyuncular = hat.isle(img, kesme)
+        if kal is None:
             birlesik = bos_kare(img, "saha gorunmuyor")
         else:
-            kal_onceki, n_ok = kal, n_ok + 1
+            birlesik, n_ok = video_karesi_ciz(img, kal, tespitler, oyuncular, iz=yumusat), n_ok + 1
         if sadece_harita:
             birlesik = birlesik[:, img.shape[1] + ARA:]
 
@@ -183,17 +255,18 @@ def video_isle(model, video: str | Path, cikti: Path, bas: float = 0, sure: floa
             olcek = min(1.0, genislik / birlesik.shape[1])
             w, hh = int(birlesik.shape[1] * olcek) // 2 * 2, int(birlesik.shape[0] * olcek) // 2 * 2
             cikti.parent.mkdir(parents=True, exist_ok=True)
-            yazici = VideoYazici(cikti, fps / adim, w, hh)
+            yazici = VideoYazici(cikti, bilgi["fps"] / bilgi["adim"], w, hh)
         yazici.yaz(birlesik)
+        n_hedef = bilgi["hedef"]
         if ilerleme and (n_islenen % 5 == 0 or n_islenen == n_hedef):
             gecen = time.time() - t0
-            kalan = gecen / n_islenen * (n_hedef - n_islenen)
+            kalan = gecen / n_islenen * max(0, n_hedef - n_islenen)
             ilerleme(min(1.0, n_islenen / n_hedef), f"{n_islenen}/{n_hedef} kare · kalan ~{kalan:.0f} sn")
-    cap.release()
     if yazici:
         yazici.kapat()
-    return {"islenen": n_islenen, "haritalanan": n_ok, "kesme": n_kesme, "sure_sn": time.time() - t0,
-            "video_sn": n_islenen * adim / fps, "yol": str(cikti) if yazici else None}
+    return {"islenen": n_islenen, "haritalanan": n_ok, "kesme": int(n_kesme), "sure_sn": time.time() - t0,
+            "video_sn": n_islenen * bilgi.get("adim", 1) / bilgi.get("fps", 25),
+            "reddedilen_sicrama": hat.filtre.reddedilen, "yol": str(cikti) if yazici else None}
 
 
 def main():
@@ -204,8 +277,8 @@ def main():
     ap.add_argument("--bas", type=float, default=0, help="videoda başlangıç saniyesi")
     ap.add_argument("--sure", type=float, default=15, help="videodan kaç saniye işlensin")
     ap.add_argument("--fps", type=float, default=12, help="saniyede kaç kare işlensin")
-    ap.add_argument("--alfa", type=float, default=0.3, help="video yumuşatma katsayısı (1 = yok)")
-    ap.add_argument("--tolerans", type=int, default=6, help="homografi bulunamazsa kaç kare öncekini kullan")
+    ap.add_argument("--yumusatma-yok", action="store_true",
+                    help="homografi filtresi ve oyuncu yumuşatmasını kapat (her kare bağımsız)")
     ap.add_argument("--kesme-esigi", type=float, default=0.35,
                     help="ardışık karelerin renk histogramı farkı bunu aşarsa sahne kesmesi say (0..1)")
     ap.add_argument("--yolo", default="yolov8n.pt", help="oyuncu tespit modeli")
@@ -229,11 +302,11 @@ def main():
 
     if args.video:
         yol = CIKTI / f"{Path(args.video).stem}_{int(args.bas)}s.mp4"
-        s = video_isle(model, args.video, yol, args.bas, args.sure, args.fps, args.alfa, args.tolerans,
-                       args.kesme_esigi, args.yolo, args.sadece_harita,
+        s = video_isle(model, args.video, yol, args.bas, args.sure, args.fps, args.kesme_esigi, args.yolo,
+                       args.sadece_harita, yumusat=not args.yumusatma_yok,
                        ilerleme=lambda o, m: print(f"\r{m}", end="", flush=True))
         print(f"\nVideo: {s['haritalanan']}/{s['islenen']} kare haritalandı, {s['kesme']} sahne kesmesi, "
-              f"{s['sure_sn']:.0f} sn sürdü → {s['yol']}")
+              f"{s['reddedilen_sicrama']} homografi sıçraması reddedildi, {s['sure_sn']:.0f} sn sürdü → {s['yol']}")
 
 
 if __name__ == "__main__":

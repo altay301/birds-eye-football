@@ -67,6 +67,36 @@ def oyunculari_bul(goruntu: np.ndarray, model_adi: str = "yolov8n.pt",
     return tespitler
 
 
+def oyunculari_takip_et(goruntu: np.ndarray, model_adi: str = "yolov8n.pt", sifirla: bool = False,
+                        guven_esigi: float = 0.1) -> list[Tespit]:
+    """
+    Videoda tespit + TAKİP (ByteTrack): her tespite kareler boyunca sabit bir kimlik verilir
+    (t.ek['id']). ByteTrack, kutuları önceki karelerin tahmini konumlarıyla (Kalman filtresi)
+    eşleştirir; düşük güvenli tespitleri de ikinci turda eşleştirerek kısa kapanmalarda kimliği korur.
+    sifirla=True → izleyici sıfırlanır (sahne kesmesinden sonra).
+    Ayrıca her oyuncunun forma rengi (t.renk_bgr) ölçülür.
+    """
+    from ultralytics import YOLO
+    anahtar = ("takip", model_adi)
+    if anahtar not in _model_onbellek:      # takip modeli ayrı tutulur (izleyici durumu modele bağlı)
+        _model_onbellek[anahtar] = YOLO(str(PROJE / "models" / model_adi))
+    model = _model_onbellek[anahtar]
+    sonuc = model.track(goruntu, classes=[COCO_INSAN, COCO_TOP], conf=guven_esigi, imgsz=1280,
+                        persist=not sifirla, tracker="bytetrack.yaml", verbose=False)[0]
+    b = sonuc.boxes
+    kimlik = b.id.int().cpu().numpy() if b.id is not None else [None] * len(b)
+    tespitler = []
+    for kutu, guven, sinif, tid in zip(b.xyxy.cpu().numpy(), b.conf.cpu().numpy(), b.cls.cpu().numpy(), kimlik):
+        t = Tespit(tuple(map(float, kutu)), float(guven), "top" if int(sinif) == COCO_TOP else "oyuncu")
+        t.ek["id"] = None if tid is None else int(tid)
+        if t.sinif == "oyuncu":
+            r = forma_rengi(goruntu, t.kutu)
+            if r is not None:
+                t.renk_bgr = tuple(int(c) for c in r)
+        tespitler.append(t)
+    return tespitler
+
+
 def forma_rengi(goruntu: np.ndarray, kutu) -> np.ndarray | None:
     """Kutunun gövde bölgesindeki yeşil olmayan piksellerin ortalama rengi (BGR)."""
     x1, y1, x2, y2 = [int(round(v)) for v in kutu]

@@ -117,8 +117,26 @@ its real jersey colour.
 * **Scene cuts**: Bhattacharyya distance between HSV (hue × saturation) histograms of consecutive sampled
   frames > 0.35 resets the temporal state. Measured on three videos: within a shot ≤ 0.26, real cuts ≥ 0.46.
   (dHash was tried first and found 25 false cuts in 10 s of continuous play — uniform grass makes it unstable.)
-* **Temporal smoothing**: `H_t = α·H_new + (1−α)·H_{t−1}` with α = 0.3 after normalising `H[2,2] = 1`.
-* If no homography is found, the previous one is reused for up to 6 sampled frames; otherwise the frame is
-  rendered with a greyed-out map and the label "saha görünmüyor" (pitch not visible), keeping the video in sync.
+* **Homography filter** (`src/takip.py`, `HomografiFiltresi`). A fixed grid of 6 × 4 image points
+  (lower 65 % of the frame) is projected to the pitch with each new `H`.
+  * *Jump rejection*: if the median displacement of the grid relative to the current estimate exceeds
+    3 m, the new `H` is discarded; if 3 consecutive rejected estimates agree with each other, they are
+    accepted as genuine camera motion.
+  * *Smoothing in point space*: the projected grid positions are averaged exponentially (α = 0.5) and `H`
+    is re-estimated from the averaged correspondences. This replaces the earlier element-wise averaging of
+    `H` matrices (α = 0.3), which has no geometric meaning and proved unstable on one validation clip (§8 of
+    the results).
+  * If no homography is found, the previous one is reused for up to 6 sampled frames; otherwise the frame is
+    rendered with a greyed-out map and the label "saha görünmüyor" (pitch not visible).
+* **Player tracking** (`oyunculari_takip_et`, ByteTrack via Ultralytics). Detections are associated over time
+  with a Kalman-filter motion model and two-stage matching (high- then low-confidence boxes), giving each
+  player a persistent identity. The tracker is reset at scene cuts.
+* **Position smoothing** (`OyuncuTakipci`). Per identity, pitch positions are averaged exponentially
+  (β = 0.4; no smoothing for the ball). A single-frame jump > 4 m is ignored as an association or detection
+  error; tracks unseen for up to 6 frames are held at their last position; the last ~1.5 s are drawn as a trail.
+* **Persistent team assignment** (`TakimAtayici`). Two team colour centres are initialised by K-means at the
+  start of a shot and then updated slowly (rate 0.05); each player is assigned to the nearest centre, with a
+  majority vote over its last 15 frames. A colour farther than 2.5 × the typical within-team spread from both
+  centres is labelled *other* (referees, goalkeepers). This removes frame-to-frame colour flicker.
 * Output is piped to `ffmpeg` (H.264, yuv420p, faststart) so it plays directly in the browser.
 * Throughput on an RTX 4070 Laptop: ~0.15 s per processed frame → a 1-minute highlight takes ~1.5–2 min.

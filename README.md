@@ -49,8 +49,10 @@ frame ─┬─► landmark heatmaps (ResNet-18 + U-Net) ─► RANSAC homograph
   `(t − h)²(1 + 20h)`, sub-pixel peak localisation by log-parabola fitting.
 * **Homography.** RANSAC over the detected landmarks, minimum of 5 inliers, rejection of degenerate
   (collinear) inlier sets.
-* **Video.** Frame sampling at 12 fps, scene-cut detection by HSV-histogram Bhattacharyya distance,
-  exponential smoothing of `H`.
+* **Video.** Frame sampling at 12 fps, scene-cut detection by HSV-histogram Bhattacharyya distance, a
+  homography filter with jump rejection and point-space smoothing, ByteTrack player tracking with per-track
+  position smoothing, and persistent team colour assignment. Player jitter is reduced about threefold
+  relative to per-frame matrix smoothing ([results §8](docs/results.md#8-temporal-stability-in-video)).
 
 Full description: [docs/method.md](docs/method.md).
 
@@ -122,7 +124,7 @@ Complete tables, detection statistics and a per-frame error analysis: [docs/resu
 * Player and ball detection use a COCO-pretrained detector without football-specific fine-tuning; its
   accuracy (mAP) is not evaluated because no box annotations are available yet. Referees are not
   distinguished from players, and the ball is detected in 59 % of frames.
-* The video pipeline does not track players; per-frame detections cause positional jitter.
+* Temporal smoothing in video is evaluated for smoothness only (no ground-truth trajectories are available).
 * All points, including the ball, are assumed to lie on the ground plane.
 * The test set is small (41 frames, 2 matches); confidence intervals are reported throughout.
 
@@ -145,6 +147,7 @@ python -X utf8 src/test_homografi.py          # geometry test with a known synth
 | Evaluation | `python -X utf8 src/deney_degerlendir.py models/unet_kp_v2.pt` |
 | Confidence intervals | `python -X utf8 src/guven_araligi.py` |
 | Figures | `python -X utf8 src/ogrenme_egrisi_ciz.py` |
+| Video stability | `python -X utf8 src/video_titreme.py` |
 | Inference (image / video) | `python -X utf8 src/sistem.py --model models/unet_kp_gercek_v1.pt --video match.mp4` |
 | Web interface | `python -X utf8 src/arayuz.py` |
 

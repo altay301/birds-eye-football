@@ -174,7 +174,7 @@ def video_sureleri() -> dict[str, Path]:
 VIDEOLAR = video_sureleri()
 
 
-def video_calistir(hazir_ad, yuklenen, bas, sure, model_ad, oyuncu_ad, hedef_fps, gorunum,
+def video_calistir(hazir_ad, yuklenen, bas, sure, model_ad, oyuncu_ad, hedef_fps, gorunum, yumusat,
                    ilerleme=gr.Progress()):
     from sistem import video_isle
     yol = Path(yuklenen) if yuklenen else VIDEOLAR.get(hazir_ad)
@@ -185,7 +185,7 @@ def video_calistir(hazir_ad, yuklenen, bas, sure, model_ad, oyuncu_ad, hedef_fps
     cikti = VIDEO_CIKTI / f"{yol.stem[:40]}_{int(bas)}s_{time.strftime('%H%M%S')}.mp4"
     s = video_isle(model, yol, cikti, bas=float(bas), sure=float(sure), hedef_fps=float(hedef_fps),
                    yolo=OYUNCU_MODELLERI[oyuncu_ad], sadece_harita=gorunum.startswith("Sadece"),
-                   ilerleme=lambda o, m: ilerleme(o, desc=m))
+                   yumusat=bool(yumusat), ilerleme=lambda o, m: ilerleme(o, desc=m))
     if not s["yol"]:
         return None, "Video okunamadı ya da seçilen aralık videonun dışında."
     oran = s["haritalanan"] / max(1, s["islenen"])
@@ -194,6 +194,7 @@ def video_calistir(hazir_ad, yuklenen, bas, sure, model_ad, oyuncu_ad, hedef_fps
         f"| İşlenen video | {s['video_sn']:.0f} sn ({s['islenen']} kare, saniyede {hedef_fps:.0f}) |",
         f"| Haritası çıkarılan kare | **{s['haritalanan']}** (%{oran * 100:.0f}) — gerisi yakın plan / tribün / tekrar |",
         f"| Algılanan sahne kesmesi | {s['kesme']} |",
+        f"| Reddedilen homografi sıçraması | {s['reddedilen_sicrama']} |",
         f"| İşlem süresi | {s['sure_sn']:.0f} sn |",
         f"| Dosya | `{Path(s['yol']).relative_to(PROJE)}` |",
     ])
@@ -228,11 +229,13 @@ with gr.Blocks(title="Kuş Bakışı Futbol") as demo:
                 v_fps = gr.Slider(4, 25, value=12, step=1, label="Saniyede işlenecek kare (az → hızlı, kesik)")
                 v_gorunum = gr.Radio(["Yan yana (görüntü + harita)", "Sadece kuş bakışı harita"],
                                      value="Yan yana (görüntü + harita)", label="Çıktı")
+                v_yumusat = gr.Checkbox(value=True, label="Zamansal yumuşatma ve oyuncu takibi "
+                                                          "(kapalı: her kare bağımsız)")
                 v_calis = gr.Button("Videoyu işle", variant="primary")
                 v_ozet = gr.Markdown()
             with gr.Column(scale=2):
                 v_sonuc = gr.Video(label="Kuş bakışı video", autoplay=True)
-        v_calis.click(video_calistir, [v_hazir, v_yuklenen, v_bas, v_sure, v_model, v_oyuncu, v_fps, v_gorunum],
+        v_calis.click(video_calistir, [v_hazir, v_yuklenen, v_bas, v_sure, v_model, v_oyuncu, v_fps, v_gorunum, v_yumusat],
                       [v_sonuc, v_ozet])
 
     with gr.Tab("Tek kare (gerçek hata ölçümüyle)"):

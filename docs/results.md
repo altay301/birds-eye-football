@@ -162,7 +162,50 @@ detector is the largest expected gain (box labelling tool: `src/kutu_etiketle.py
 | 12 / t00369 | no homography (6 points) | Low angle near the goal line; players and goal net occlude the lines |
 | 12 / t00046, t00105 | no homography (1–3 points) | Close-ups with too few visible landmarks |
 
-## 8. Video demo
+## 8. Temporal stability in video
+
+No ground-truth trajectories exist for the videos, but genuine motion (running, camera pans) is smooth while
+jitter alternates from frame to frame. Smoothness is therefore measured by the norm of the **second
+difference** of a position, `‖p(t+1) − 2p(t) + p(t−1)‖` (metres, zero for constant-velocity motion), over
+consecutive sampled frames within a shot (12 fps):
+
+* *homography jitter*: second difference of a fixed 6 × 4 image grid projected to the pitch;
+* *player jitter*: second difference of the pitch position of the same tracked identity;
+* *distance to raw*: distance between the smoothed and the unsmoothed position of a player in the same frame
+  — a guard against over-smoothing (freezing positions would minimise jitter but maximise this distance).
+
+Three methods are compared on the **same frames, keypoint predictions, detections and identities**:
+*raw* (each frame independent), *previous* (element-wise EMA of `H`, α = 0.3, raw positions) and *new*
+(homography filter with jump rejection and point-space smoothing + per-track position smoothing; §7 of the
+method). The smoothing factor α ∈ {0.3, 0.5} was selected on two validation clips (matches 02 and 10): both
+gave the same player jitter, α = 0.5 stayed closer to the raw positions. Results on 60 s clips from the three
+test matches (`src/video_titreme.py`, `results/video_titreme.json`):
+
+| Clip | Method | Coverage | Homography jitter, median / p90 (m) | Player jitter, median / p90 (m) | Distance to raw (m) |
+|---|---|---|---|---|---|
+| 12 (60–120 s) | raw | 47 % | 0.213 / 0.761 | 0.222 / 0.719 | — |
+| | previous | 48 % | 0.068 / 0.198 | 0.134 / 0.437 | 0.60 |
+| | **new** | 48 % | 0.099 / 0.309 | **0.042 / 0.193** | **0.49** |
+| 11 (90–150 s) | raw | 79 % | 0.181 / 1.057 | 0.299 / 1.282 | — |
+| | previous | 82 % | 0.050 / 0.283 | 0.148 / 0.517 | 0.51 |
+| | **new** | 82 % | 0.075 / 0.463 | **0.046 / 0.237** | **0.40** |
+| 04 (120–180 s) | raw | 47 % | 0.209 / 1.285 | 0.321 / 3.187 | — |
+| | previous | 47 % | 0.047 / 0.326 | 0.135 / 0.867 | 0.27 |
+| | **new** | 47 % | 0.078 / 0.508 | **0.046 / 0.413** | 0.30 |
+
+* **Player jitter** is reduced by a factor of ≈ 3 relative to the previous method and 5–7 relative to raw
+  output, while the smoothed positions stay as close to (clips 12, 11) or nearly as close to (clip 04) the raw
+  positions as before; the improvement is not obtained by freezing players.
+* **Homography jitter** of the new filter is somewhat higher than that of the previous matrix EMA at the
+  selected α (less smoothing, less lag). However, the matrix EMA is not robust: on validation clip 10 its
+  90th-percentile homography jitter reached 4.06 m — worse than raw output (2.79 m) — whereas the new filter
+  stayed at 0.82 m. Jump rejection was triggered 15 times on the test clips (0 / 9 / 6).
+* Coverage (frames with a homography) is unchanged; it is limited by the keypoint detector, not by the
+  temporal processing (very wide shots with few landmarks remain unmapped).
+* Limitations of this evaluation: the metric measures smoothness, not accuracy; parameters were selected on
+  two short validation clips; one run per clip.
+
+## 9. Video demo
 
 Juventus – Inter highlight (test match 12), 15 s at 12 processed fps: 104 of 180 frames mapped (58 %; the
 rest were close-ups, crowd shots and replays, correctly marked "pitch not visible"), 3 scene cuts detected,
