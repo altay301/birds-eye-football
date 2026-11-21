@@ -143,42 +143,57 @@ grows for distant players (flatter viewing angle). The share of positions inside
 
 Box annotations: 95 frames (5 per match), 1,680 boxes (1,422 players, 120 referees, 67 goalkeepers,
 71 balls), split by match like the keypoints (train 65 / val 15 / test 15 frames). YOLOv8m initialised from
-COCO was fine-tuned for 80 epochs at 1280 px (11 min on an RTX 4070 Laptop; checkpoint selected on
-validation). Evaluation on the 15 test frames (matches 04, 11, 12; `src/tespit_degerlendir.py`,
-`results/tespit.json`). Because the COCO model has no role classes, the comparison uses the two tasks both
-models share: *person* (player, goalkeeper and referee merged) and *ball*. Operating point: confidence ≥ 0.25.
-Differences: paired frame bootstrap, B = 5,000.
+COCO was fine-tuned on the training frames; checkpoints are selected on validation.
+
+**Variants and selection (validation matches only).** Three variants were trained; the choice was made on
+the validation frames by the mean AP50 of the four role classes, before looking at the test frames
+(`tespit_degerlendir.py --secim`, `results/tespit_val_secimi.json`):
+
+| Variant | Change | Val AP50: player / goalkeeper / referee / ball | Mean |
+|---|---|---|---|
+| v1 | 1280 px, 80 epochs | 0.834 / 0.432 / 0.217 / 0.556 | 0.510 |
+| v2 | frames containing a goalkeeper oversampled ×3, 35 epochs (same number of optimisation steps) | 0.830 / 0.606 / 0.584 / 0.626 | 0.662 |
+| **v3** | **1536 px input**, 80 epochs | **0.897** / 0.536 / **0.587** / **0.661** | **0.670** |
+
+Oversampling by frame is limited because goalkeepers appear in 42 and the ball in most of the 65 training
+frames; the imbalance is at the instance level (≈ 1 goalkeeper per 15 players). Higher input resolution
+helps the small ball. v2 and v3 are close on 15 validation frames; v3 was selected by the pre-defined criterion.
+
+**Test results** (15 frames of matches 04, 11, 12; `src/tespit_degerlendir.py`, `results/tespit.json`; v1 in
+`results/tespit_futbol_v1.json`). Because the COCO model has no role classes, the comparison uses the two tasks
+all models share: *person* (player, goalkeeper and referee merged) and *ball*. Operating point: confidence
+≥ 0.25. Differences to COCO: paired frame bootstrap, B = 5,000.
 
 | | Person AP50 | Person AP50-95 | Person recall / precision | Ball AP50 | Ball recall / precision |
 |---|---|---|---|---|---|
 | COCO YOLOv8m | 0.800 | 0.777 | 0.90 / 0.49 | 0.631 | 0.80 / 0.33 |
-| **Fine-tuned (ours)** | **0.934** | 0.793 | 0.94 / **0.80** | 0.545 | 0.50 / **0.83** |
-| Difference [95 % CI] | **+0.134 [+0.062, +0.206]** | | | −0.086 [−0.363, +0.212] | recall −0.30 [−0.70, +0.11] |
+| Fine-tuned v1 | 0.934 | 0.793 | 0.94 / 0.80 | 0.545 | 0.50 / 0.83 |
+| **Fine-tuned v3 (selected)** | **0.930** | 0.783 | 0.91 / **0.87** | **0.737** | 0.70 / 0.64 |
+| v3 − COCO [95 % CI] | **+0.130 [+0.069, +0.190]** | | | +0.106 [−0.041, +0.292] | recall −0.10 [−0.33, 0.00] |
 
 * **Person detection improves significantly**, mainly through precision: the COCO model also detects
   spectators, staff and ball boys, which the annotation protocol treats as negatives.
-* **Ball:** no significant difference. The fine-tuned model produces far fewer false balls (precision
-  0.33 → 0.83) but misses more (recall 0.80 → 0.50). The test set contains only 10 balls, so the estimate
-  is very uncertain.
-* **Role classes** (fine-tuned model only), AP50: player 0.929, referee 0.591, goalkeeper 0.527, ball 0.545.
+* **Ball:** v3 reaches the highest ball AP50, but the difference to COCO is not significant — the test set
+  contains only 10 balls. v3 trades some recall (0.70 vs 0.80) for far fewer false balls (precision 0.64 vs 0.33).
+* **Role classes** (v3), AP50: player 0.912, referee 0.751, goalkeeper 0.564, ball 0.737.
 
-**Referee separation** (detected persons at confidence ≥ 0.25 matched to ground truth; rows: true role,
+**Referee separation** (v3; detected persons at confidence ≥ 0.25 matched to ground truth; rows: true role,
 columns: predicted role):
 
 | | player | goalkeeper | referee |
 |---|---|---|---|
-| player (205) | 198 | 0 | 7 |
-| goalkeeper (10) | 4 | 5 | 1 |
-| referee (18) | 2 | 1 | **15** |
+| player (201) | 196 | 2 | 3 |
+| goalkeeper (10) | 3 | 7 | 0 |
+| referee (15) | 1 | 0 | **14** |
 
-15 of 18 referees (83 %) are recognised and therefore hidden on the bird's-eye map (with the COCO model all
-of them appear as players); 7 of 205 players (3 %) are wrongly hidden. Goalkeepers (42 training examples)
-are recognised only half of the time.
+14 of 15 detected referees (93 %) are recognised and therefore hidden on the bird's-eye map (with the COCO
+model all of them appear as players); 3 of 201 players (1.5 %) are wrongly hidden. Goalkeepers (42 training
+examples) remain the weakest class (7 of 10).
 
 **Annotation bias.** 92 % of the final boxes kept the exact coordinates proposed by the COCO model. Metrics
 that depend on precise box placement therefore favour the COCO model: its foot-point error with respect to the
-labels is 0.00 m (median) versus 0.05 m for the fine-tuned model, which reflects shared coordinates, not
-better localisation. AP50-95 is affected in the same direction. The reported improvements are conservative.
+labels is 0.00 m (median) versus 0.06 m for v3, which reflects shared coordinates, not better localisation.
+AP50-95 is affected in the same direction. The reported improvements are conservative.
 
 ### 6.2 Label-free statistics of the COCO model (251 frames)
 

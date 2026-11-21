@@ -31,11 +31,12 @@ def main():
     ap.add_argument("--imgsz", type=int, default=1280)
     ap.add_argument("--batch", type=int, default=4)
     ap.add_argument("--isci", type=int, default=2)
+    ap.add_argument("--veri", default="kutu.yaml", help="data\\kutu_yolo içindeki yaml (kutu_nadir.yaml: nadir sınıf çoğaltmalı)")
     args = ap.parse_args()
 
     from ultralytics import YOLO
     model = YOLO(str(PROJE / "models" / args.temel))
-    model.train(data=str(PROJE / "data" / "kutu_yolo" / "kutu.yaml"), epochs=args.epoch, imgsz=args.imgsz,
+    model.train(data=str(PROJE / "data" / "kutu_yolo" / args.veri), epochs=args.epoch, imgsz=args.imgsz,
                 batch=args.batch, workers=args.isci, cache=False, seed=0, deterministic=False,
                 project=str(PROJE / "runs" / "tespit"), name=args.ad, exist_ok=True, plots=True,
                 close_mosaic=10, patience=0, verbose=False)

@@ -100,7 +100,8 @@ that box confidence collapsed, so the synthetic-only model produced no keypoints
 real data helped but its keypoints stay coarse (box-relative regression at 640 px vs. full-resolution heatmaps).
 
 ### 5.3 Players and teams (`src/oyuncu.py`)
-YOLOv8m at 1280 px input, fine-tuned from COCO on our box annotations with four role classes — player,
+YOLOv8m at 1536 px input (selected over 1280 px and goalkeeper oversampling on validation matches),
+fine-tuned from COCO on our box annotations with four role classes — player,
 goalkeeper, referee, ball (`src/kutu_veri_hazirla.py`, `src/egit_tespit.py`; protocol in
 [annotation_protocol.md](annotation_protocol.md), Part B). Referees (including assistant referees) are
 detected but not drawn on the bird's-eye map. The COCO model (`person`, `sports ball`) remains available as a

@@ -112,11 +112,12 @@ a reference, not as a point of either curve.
 
 ### 4.3 Player and referee detection
 
-A YOLOv8m detector fine-tuned on 1,680 own box annotations (95 frames) with the roles player, goalkeeper,
-referee and ball raises person AP50 on the test matches from 0.800 (COCO model) to 0.934 (paired 95 % CI of the
-difference [+0.062, +0.206]), mainly by ignoring spectators and staff (precision 0.49 → 0.80). 15 of 18
-referees are recognised and removed from the bird's-eye map. Ball detection shows no significant change
-(details and an annotation-bias caveat in [results §6](docs/results.md#6-player-referee-and-ball-detection)).
+A YOLOv8m detector fine-tuned at 1536 px on 1,680 own box annotations (95 frames) with the roles player,
+goalkeeper, referee and ball (variant selected on validation matches) raises person AP50 on the test matches
+from 0.800 (COCO model) to 0.930 (paired 95 % CI of the difference [+0.069, +0.190]), mainly by ignoring
+spectators and staff (precision 0.49 → 0.87). 14 of 15 detected referees are recognised and removed from the
+bird's-eye map. Ball AP50 rises from 0.631 to 0.737, not significant with 10 test balls (details and an
+annotation-bias caveat in [results §6](docs/results.md#6-player-referee-and-ball-detection)).
 
 ### 4.4 Player position: foot point versus box centre
 
@@ -130,8 +131,9 @@ Complete tables, detection statistics and a per-frame error analysis: [docs/resu
 
 * Close-up and low-angle views near the goal expose too few non-collinear landmarks; calibration then fails
   or is incorrect. Frames showing a single penalty area are ambiguous under left/right mirror symmetry.
-* The detector was fine-tuned on only 65 annotated frames: goalkeepers are recognised in about half of the
-  cases and ball detection did not improve measurably (10 test balls). In video, the ball is hidden on the map
+* The detector was fine-tuned on only 65 annotated frames: goalkeepers remain the weakest class (AP50 0.56)
+  and the ball improvement is not statistically established (10 test balls); variants were compared with a
+  single training seed each. In video, the ball is hidden on the map
   by default because of its jitter (and because a ball in the air is projected incorrectly).
 * Temporal smoothing in video is evaluated for smoothness only (no ground-truth trajectories are available).
 * All points, including the ball, are assumed to lie on the ground plane.

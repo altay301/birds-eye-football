@@ -27,6 +27,10 @@ SINIFLAR = ["oyuncu", "kaleci", "hakem", "top"]
 
 
 def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--nadir-kat", type=int, default=3, help="kaleci içeren train karelerinin tekrar sayısı")
+    args = ap.parse_args()
     bolme = json.loads((PROJE / "data" / "bolme.json").read_text(encoding="utf-8"))
     if CIKTI.exists():
         shutil.rmtree(CIKTI)
@@ -53,10 +57,22 @@ def main():
         shutil.copy2(g, CIKTI / "images" / kume / f"{ad}.jpg")
         (CIKTI / "labels" / kume / f"{ad}.txt").write_text("\n".join(satirlar) + "\n", encoding="utf-8")
         say[kume] = say.get(kume, 0) + 1
-    yaml = (f"path: {CIKTI.as_posix()}\ntrain: images/train\nval: images/val\ntest: images/test\n"
-            f"names:\n" + "".join(f"  {i}: {s}\n" for i, s in enumerate(SINIFLAR)))
-    (CIKTI / "kutu.yaml").write_text(yaml, encoding="utf-8")
-    print(say, "→", CIKTI / "kutu.yaml")
+    adlar = "names:\n" + "".join(f"  {i}: {s}\n" for i, s in enumerate(SINIFLAR))
+    (CIKTI / "kutu.yaml").write_text(f"path: {CIKTI.as_posix()}\ntrain: images/train\nval: images/val\n"
+                                     f"test: images/test\n" + adlar, encoding="utf-8")
+
+    # NADİR SINIF ÇOĞALTMA: kaleci içeren train kareleri K kez listelenir. Ultralytics her kullanımda
+    # farklı rastgele veri çoğaltma (mozaik, ölçek, renk) uyguladığı için kopyalar özdeş değildir.
+    # (Top neredeyse her karede var → kare çoğaltma topun payını değiştirmez; topun sorunu küçüklük.)
+    nadir = {SINIFLAR.index("kaleci")}
+    liste = []
+    for g in sorted((CIKTI / "images" / "train").glob("*.jpg")):
+        siniflar = {int(s.split()[0]) for s in (CIKTI / "labels" / "train" / f"{g.stem}.txt").read_text().split("\n") if s}
+        liste += [g.as_posix()] * (args.nadir_kat if siniflar & nadir else 1)
+    (CIKTI / "train_nadir.txt").write_text("\n".join(liste) + "\n", encoding="utf-8")
+    (CIKTI / "kutu_nadir.yaml").write_text(f"path: {CIKTI.as_posix()}\ntrain: train_nadir.txt\nval: images/val\n"
+                                           f"test: images/test\n" + adlar, encoding="utf-8")
+    print(say, "→", CIKTI / "kutu.yaml", f"| nadir çoğaltmalı train listesi: {len(liste)} satır")
 
 
 if __name__ == "__main__":

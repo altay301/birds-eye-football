@@ -65,6 +65,11 @@ def _yukle(anahtar, model_adi):
     return _model_onbellek[anahtar]
 
 
+def _imgsz(model) -> int:
+    """Model eğitildiği çözünürlükte çalıştırılır (en az 1280: küçük oyuncular ve top için)."""
+    return max(1280, (getattr(model, "ckpt", None) or {}).get("train_args", {}).get("imgsz", 1280))
+
+
 def oyunculari_bul(goruntu: np.ndarray, model_adi: str = "yolov8n.pt",
                    guven_esigi: float = 0.25) -> list[Tespit]:
     """
@@ -73,7 +78,7 @@ def oyunculari_bul(goruntu: np.ndarray, model_adi: str = "yolov8n.pt",
     """
     model = _yukle(model_adi, model_adi)
     filtre, ad = _siniflar(model)
-    sonuc = model.predict(goruntu, classes=filtre, conf=guven_esigi, imgsz=1280, verbose=False)[0]
+    sonuc = model.predict(goruntu, classes=filtre, conf=guven_esigi, imgsz=_imgsz(model), verbose=False)[0]
     return [Tespit(tuple(map(float, kutu)), float(guven), ad[int(sinif)])
             for kutu, guven, sinif in zip(sonuc.boxes.xyxy.cpu().numpy(), sonuc.boxes.conf.cpu().numpy(),
                                           sonuc.boxes.cls.cpu().numpy())]
@@ -90,7 +95,7 @@ def oyunculari_takip_et(goruntu: np.ndarray, model_adi: str = "yolov8n.pt", sifi
     """
     model = _yukle(("takip", model_adi), model_adi)   # takip modeli ayrı tutulur (izleyici durumu modele bağlı)
     filtre, ad = _siniflar(model)
-    sonuc = model.track(goruntu, classes=filtre, conf=guven_esigi, imgsz=1280,
+    sonuc = model.track(goruntu, classes=filtre, conf=guven_esigi, imgsz=_imgsz(model),
                         persist=not sifirla, tracker="bytetrack.yaml", verbose=False)[0]
     b = sonuc.boxes
     kimlik = b.id.int().cpu().numpy() if b.id is not None else [None] * len(b)

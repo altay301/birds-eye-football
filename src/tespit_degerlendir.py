@@ -94,11 +94,11 @@ def calisma_noktasi(kareler):
     return {"recall": tp / max(n_r, 1), "precision": tp / max(n_t, 1)}
 
 
-def test_kareleri():
+def test_kareleri(kume: str = "test"):
     bolme = json.loads((PROJE / "data" / "bolme.json").read_text(encoding="utf-8"))
     out = []
     for e in sorted(KUTU.glob("*/*.json")):
-        if bolme.get(e.parent.name) != "test":
+        if bolme.get(e.parent.name) != kume:
             continue
         d = json.loads(e.read_text(encoding="utf-8"))
         n = json.loads((NOKTA / e.parent.name / e.name).read_text(encoding="utf-8"))["noktalar"]
@@ -116,10 +116,12 @@ def tahmin_et(model_yolu: Path, kareler) -> list[list[dict]]:
     from ultralytics import YOLO
     model = YOLO(str(model_yolu))
     adlar = model.names
+    # Her model EĞİTİLDİĞİ çözünürlükte çalıştırılır (COCO modeli için 1280)
+    imgsz = max(1280, (getattr(model, "ckpt", None) or {}).get("train_args", {}).get("imgsz", 1280))
     sonuc = []
     for k in kareler:
         img = cv2.imdecode(np.fromfile(str(k["goruntu"]), np.uint8), cv2.IMREAD_COLOR)
-        r = model.predict(img, conf=0.001, imgsz=1280, verbose=False, max_det=300)[0]
+        r = model.predict(img, conf=0.001, imgsz=imgsz, verbose=False, max_det=300)[0]
         liste = []
         for xyxy, c, s in zip(r.boxes.xyxy.cpu().numpy(), r.boxes.conf.cpu().numpy(), r.boxes.cls.cpu().numpy()):
             ad = adlar[int(s)]
@@ -180,11 +182,32 @@ def hakem_ayrimi(kareler, tahminler) -> dict:
     return karisiklik
 
 
+def val_secimi(modeller: list[str]):
+    """Varyant seçimi SADECE val maçlarında (02, 10, 19): test maçlarına bakılmaz."""
+    kareler = test_kareleri("val")
+    print(f"VAL: {len(kareler)} kare")
+    print(f"{'model':28s} {'kişi':>6s} {'oyuncu':>7s} {'kaleci':>7s} {'hakem':>6s} {'top':>6s} {'top R@.25':>9s} {'ort.4':>6s}")
+    sonuc = {}
+    for m in modeller:
+        tah = tahmin_et(Path(m), kareler)
+        s = {g: ap(gorev(kareler, tah, g), 0.5) for g in ("kisi", "oyuncu", "kaleci", "hakem", "top")}
+        s["top_R"] = calisma_noktasi(gorev(kareler, tah, "top"))["recall"]
+        s["ort4"] = float(np.mean([s[g] for g in ("oyuncu", "kaleci", "hakem", "top")]))
+        sonuc[Path(m).stem] = s
+        print(f"{Path(m).stem:28s} {s['kisi']:6.3f} {s['oyuncu']:7.3f} {s['kaleci']:7.3f} {s['hakem']:6.3f} "
+              f"{s['top']:6.3f} {s['top_R']:9.2f} {s['ort4']:6.3f}")
+    (PROJE / "results" / "tespit_val_secimi.json").write_text(json.dumps(sonuc, indent=2), encoding="utf-8")
+
+
 def main():
     ap_ = argparse.ArgumentParser()
-    ap_.add_argument("--model", default=str(PROJE / "models" / "tespit_futbol_v1.pt"))
+    ap_.add_argument("--model", default=str(PROJE / "models" / "tespit_futbol_v3_1536.pt"))
     ap_.add_argument("--temel", default=str(PROJE / "models" / "yolov8m.pt"))
+    ap_.add_argument("--secim", nargs="+", help="VAL maçlarında model seçimi: verilen modellerin sınıf AP50'leri")
     args = ap_.parse_args()
+    if args.secim:
+        val_secimi(args.secim)
+        return
     kareler = test_kareleri()
     tah = {"coco": tahmin_et(Path(args.temel), kareler), "yeni": tahmin_et(Path(args.model), kareler)}
     sonuc = {"kare": len(kareler), "esik": ESIK, "modeller": {}, "farklar": {}}

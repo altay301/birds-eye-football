@@ -48,7 +48,7 @@ SAHA_MODELLERI = {
     "U-Net, sentetiksiz (B, 143 kare) — unet_kp_egri_Bhep": "unet_kp_egri_Bhep.pt",
     "YOLO-pose, ince ayarlı — saha_kp_gercek_v2": "saha_kp_gercek_v2.pt",
 }
-OYUNCU_MODELLERI = {"Kendi modelimiz (oyuncu/kaleci/hakem/top)": "tespit_futbol_v1.pt",
+OYUNCU_MODELLERI = {"Kendi modelimiz (oyuncu/kaleci/hakem/top)": "tespit_futbol_v3_1536.pt",
                     "Hazır YOLOv8m (COCO)": "yolov8m.pt", "Hazır YOLOv8n (COCO, hızlı)": "yolov8n.pt"}
 OYUNCU_MODELLERI = {k: v for k, v in OYUNCU_MODELLERI.items() if (PROJE / "models" / v).exists()}
 _onbellek: dict = {}
