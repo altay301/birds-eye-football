@@ -179,7 +179,7 @@ def video_karesi_ciz(img: np.ndarray, kal, tespitler: list, oyuncular: list[dict
         harita = cv2.addWeighted(katman, 0.15, harita, 0.85, 0)
     if iz:                                      # son ~1.5 sn'lik hareket izi
         for o in oyuncular:
-            if o.get("sinif") != "top" and len(o.get("iz", [])) > 1:
+            if o.get("sinif") not in pitch.HARITADA_GIZLI | {"top"} and len(o.get("iz", [])) > 1:
                 p = np.array([pitch.metre_to_piksel(x, y) for x, y in o["iz"]], np.int32)
                 renk = tuple(int(c) for c in (o.get("renk") or (200, 200, 200)))
                 cv2.polylines(harita, [p], False, renk, 2, cv2.LINE_AA)
@@ -195,8 +195,10 @@ class VideoHatti:
     takım ataması → (konum yumuşatma). yumusat=False → her kare bağımsız (karşılaştırma için).
     """
 
-    def __init__(self, model, yolo: str = "yolov8n.pt", yumusat: bool = True):
-        self.model, self.yolo, self.yumusat = model, yolo, yumusat
+    def __init__(self, model, yolo: str = "yolov8n.pt", yumusat: bool = True, top_goster: bool = False):
+        # top_goster=False: top haritada gösterilmez. Hazır model topu karelerin ~%59'unda bulur, yanlış
+        # tespitler olur ve havadaki top homografi yüzünden metrelerce kayar → haritada titrek görünür.
+        self.model, self.yolo, self.yumusat, self.top_goster = model, yolo, yumusat, top_goster
         self.filtre, self.takim, self.takipci = HomografiFiltresi(), TakimAtayici(), OyuncuTakipci()
         self.ilk = True
 
@@ -223,13 +225,15 @@ class VideoHatti:
         else:
             oyuncular = [{"x": t.saha[0], "y": t.saha[1], "sinif": t.sinif, "renk": t.ek.get("takim_renk"),
                           "id": t.ek.get("id")} for t in sahadakiler]
+        if not self.top_goster:
+            oyuncular = [o for o in oyuncular if o["sinif"] != "top"]
         return kal, sahadakiler, oyuncular
 
 
 def video_isle(model, video: str | Path, cikti: Path, bas: float = 0, sure: float | None = None,
                hedef_fps: float = 12, kesme_esigi: float = 0.35, yolo: str = "yolov8n.pt",
                sadece_harita: bool = False, genislik: int = 1280, yumusat: bool = True,
-               ilerleme=None) -> dict:
+               top_goster: bool = False, ilerleme=None) -> dict:
     """
     Videoyu kuş bakışı videoya çevirir.
       hedef_fps     : saniyede kaç kare işlensin (12 → 60 fps videoda her 5. kare)
@@ -237,7 +241,7 @@ def video_isle(model, video: str | Path, cikti: Path, bas: float = 0, sure: floa
       sadece_harita : True → sadece kuş bakışı harita, False → görüntü + harita yan yana
       ilerleme      : ilerleme(oran 0..1, mesaj) çağrılır (arayüzdeki ilerleme çubuğu için)
     """
-    hat = VideoHatti(model, yolo, yumusat)
+    hat = VideoHatti(model, yolo, yumusat, top_goster)
     yazici, n_islenen, n_ok, n_kesme, bilgi = None, 0, 0, 0, {}
     t0 = time.time()
     for img, kesme, bilgi in video_kareleri(video, bas, sure, hedef_fps, kesme_esigi):
@@ -279,6 +283,7 @@ def main():
     ap.add_argument("--fps", type=float, default=12, help="saniyede kaç kare işlensin")
     ap.add_argument("--yumusatma-yok", action="store_true",
                     help="homografi filtresi ve oyuncu yumuşatmasını kapat (her kare bağımsız)")
+    ap.add_argument("--top-goster", action="store_true", help="topu videodaki haritada göster")
     ap.add_argument("--kesme-esigi", type=float, default=0.35,
                     help="ardışık karelerin renk histogramı farkı bunu aşarsa sahne kesmesi say (0..1)")
     ap.add_argument("--yolo", default="yolov8n.pt", help="oyuncu tespit modeli")
@@ -303,7 +308,7 @@ def main():
     if args.video:
         yol = CIKTI / f"{Path(args.video).stem}_{int(args.bas)}s.mp4"
         s = video_isle(model, args.video, yol, args.bas, args.sure, args.fps, args.kesme_esigi, args.yolo,
-                       args.sadece_harita, yumusat=not args.yumusatma_yok,
+                       args.sadece_harita, yumusat=not args.yumusatma_yok, top_goster=args.top_goster,
                        ilerleme=lambda o, m: print(f"\r{m}", end="", flush=True))
         print(f"\nVideo: {s['haritalanan']}/{s['islenen']} kare haritalandı, {s['kesme']} sahne kesmesi, "
               f"{s['reddedilen_sicrama']} homografi sıçraması reddedildi, {s['sure_sn']:.0f} sn sürdü → {s['yol']}")

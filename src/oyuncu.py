@@ -45,26 +45,38 @@ class Tespit:
 _model_onbellek = {}
 
 
+def _siniflar(model) -> tuple[list[int] | None, dict[int, str]]:
+    """
+    İki tür model desteklenir:
+      * hazır COCO modeli  → sadece 'person' ve 'sports ball' sınıfları; herkes "oyuncu" sayılır
+      * kendi modelimiz    → sınıflar doğrudan rol: oyuncu / kaleci / hakem / top
+    Döner: (YOLO'ya verilecek sınıf filtresi, sınıf no → bizim sınıf adımız)
+    """
+    adlar = model.names
+    if "person" in adlar.values():
+        return [COCO_INSAN, COCO_TOP], {COCO_INSAN: "oyuncu", COCO_TOP: "top"}
+    return None, {i: a for i, a in adlar.items()}
+
+
+def _yukle(anahtar, model_adi):
+    from ultralytics import YOLO
+    if anahtar not in _model_onbellek:      # modeli bir kez yükle, tekrar kullan
+        _model_onbellek[anahtar] = YOLO(str(PROJE / "models" / model_adi))
+    return _model_onbellek[anahtar]
+
+
 def oyunculari_bul(goruntu: np.ndarray, model_adi: str = "yolov8n.pt",
                    guven_esigi: float = 0.25) -> list[Tespit]:
     """
-    Hazır YOLO modeliyle insanları ve topu bulur.
-    imgsz=1280: Görüntüyü büyük işler → uzaktaki küçük oyuncular daha iyi bulunur
-    (varsayılan 640'tır; ekran kartımız buna rahat yeter).
+    YOLO ile kişileri (rolleriyle, kendi modelimizde) ve topu bulur.
+    imgsz=1280: Görüntüyü büyük işler → uzaktaki küçük oyuncular ve top daha iyi bulunur.
     """
-    from ultralytics import YOLO
-    if model_adi not in _model_onbellek:      # modeli bir kez yükle, tekrar kullan
-        _model_onbellek[model_adi] = YOLO(str(PROJE / "models" / model_adi))
-    model = _model_onbellek[model_adi]
-    sonuc = model.predict(goruntu, classes=[COCO_INSAN, COCO_TOP], conf=guven_esigi,
-                          imgsz=1280, verbose=False)[0]
-    tespitler = []
-    for kutu, guven, sinif in zip(sonuc.boxes.xyxy.cpu().numpy(),
-                                  sonuc.boxes.conf.cpu().numpy(),
-                                  sonuc.boxes.cls.cpu().numpy()):
-        tespitler.append(Tespit(tuple(map(float, kutu)), float(guven),
-                                "top" if int(sinif) == COCO_TOP else "oyuncu"))
-    return tespitler
+    model = _yukle(model_adi, model_adi)
+    filtre, ad = _siniflar(model)
+    sonuc = model.predict(goruntu, classes=filtre, conf=guven_esigi, imgsz=1280, verbose=False)[0]
+    return [Tespit(tuple(map(float, kutu)), float(guven), ad[int(sinif)])
+            for kutu, guven, sinif in zip(sonuc.boxes.xyxy.cpu().numpy(), sonuc.boxes.conf.cpu().numpy(),
+                                          sonuc.boxes.cls.cpu().numpy())]
 
 
 def oyunculari_takip_et(goruntu: np.ndarray, model_adi: str = "yolov8n.pt", sifirla: bool = False,
@@ -76,18 +88,15 @@ def oyunculari_takip_et(goruntu: np.ndarray, model_adi: str = "yolov8n.pt", sifi
     sifirla=True → izleyici sıfırlanır (sahne kesmesinden sonra).
     Ayrıca her oyuncunun forma rengi (t.renk_bgr) ölçülür.
     """
-    from ultralytics import YOLO
-    anahtar = ("takip", model_adi)
-    if anahtar not in _model_onbellek:      # takip modeli ayrı tutulur (izleyici durumu modele bağlı)
-        _model_onbellek[anahtar] = YOLO(str(PROJE / "models" / model_adi))
-    model = _model_onbellek[anahtar]
-    sonuc = model.track(goruntu, classes=[COCO_INSAN, COCO_TOP], conf=guven_esigi, imgsz=1280,
+    model = _yukle(("takip", model_adi), model_adi)   # takip modeli ayrı tutulur (izleyici durumu modele bağlı)
+    filtre, ad = _siniflar(model)
+    sonuc = model.track(goruntu, classes=filtre, conf=guven_esigi, imgsz=1280,
                         persist=not sifirla, tracker="bytetrack.yaml", verbose=False)[0]
     b = sonuc.boxes
     kimlik = b.id.int().cpu().numpy() if b.id is not None else [None] * len(b)
     tespitler = []
     for kutu, guven, sinif, tid in zip(b.xyxy.cpu().numpy(), b.conf.cpu().numpy(), b.cls.cpu().numpy(), kimlik):
-        t = Tespit(tuple(map(float, kutu)), float(guven), "top" if int(sinif) == COCO_TOP else "oyuncu")
+        t = Tespit(tuple(map(float, kutu)), float(guven), ad[int(sinif)])
         t.ek["id"] = None if tid is None else int(tid)
         if t.sinif == "oyuncu":
             r = forma_rengi(goruntu, t.kutu)

@@ -10,8 +10,8 @@ homography, which we estimate from automatically detected pitch landmarks. We (i
 262 manually annotated broadcast frames (2,657 keypoints, 35 landmark types) from 19 matches together
 with a synthetic data generator based on a virtual broadcast camera, (ii) train a ResNet-18/U-Net
 heatmap regressor for landmark detection, (iii) estimate the homography robustly with RANSAC, and
-(iv) project player foot points, detected with an off-the-shelf YOLOv8 detector, onto a top-down pitch
-model. On two held-out matches annotated without model assistance, the landmark detector attains
+(iv) project player foot points, detected with a YOLOv8 detector fine-tuned on our own role-annotated
+boxes (player, goalkeeper, referee, ball), onto a top-down pitch model. On two held-out matches annotated without model assistance, the landmark detector attains
 PCK@10 = 80.6 % (95 % CI 68.1–91.0) and the resulting homography localises pitch points with a mean
 error below 1 m in 86.8 % of frames (median 0.22 m), whereas a YOLO-pose baseline trained on the same
 data reaches 15.6 % and 26.3 %, respectively. A controlled learning-curve study shows that synthetic
@@ -22,7 +22,8 @@ synthetic pre-training the accuracy no longer improves significantly beyond 39 r
 
 1. **Dataset.** Automatic frame selection from 19 publicly available highlight videos (10,390 candidate
    frames → 475 selected), a written annotation protocol ([docs/annotation_protocol.md](docs/annotation_protocol.md))
-   and 262 annotated frames with a match-level train/validation/test split.
+   and 262 annotated frames with a match-level train/validation/test split, plus 1,680 role-annotated
+   bounding boxes in 95 of these frames.
 2. **Bias-controlled evaluation.** We measure confirmation bias in model-assisted annotation (66 % of
    labels identical to the suggestion) and therefore annotate the headline test matches without model
    suggestions.
@@ -109,7 +110,15 @@ a reference, not as a point of either curve.
 * The synthetic-only model and the model trained on all 143 real frames without synthetic data do not
   differ significantly (+0.3, [−4.8, +5.4]).
 
-### 4.3 Player position: foot point versus box centre
+### 4.3 Player and referee detection
+
+A YOLOv8m detector fine-tuned on 1,680 own box annotations (95 frames) with the roles player, goalkeeper,
+referee and ball raises person AP50 on the test matches from 0.800 (COCO model) to 0.934 (paired 95 % CI of the
+difference [+0.062, +0.206]), mainly by ignoring spectators and staff (precision 0.49 → 0.80). 15 of 18
+referees are recognised and removed from the bird's-eye map. Ball detection shows no significant change
+(details and an annotation-bias caveat in [results §6](docs/results.md#6-player-referee-and-ball-detection)).
+
+### 4.4 Player position: foot point versus box centre
 
 On 251 frames with homographies from manual annotations (mean error < 0.5 m), projecting the bounding-box
 centre instead of the foot point displaces 5,081 players by a median of **4.2 m** (90th percentile 6.6 m),
@@ -121,9 +130,9 @@ Complete tables, detection statistics and a per-frame error analysis: [docs/resu
 
 * Close-up and low-angle views near the goal expose too few non-collinear landmarks; calibration then fails
   or is incorrect. Frames showing a single penalty area are ambiguous under left/right mirror symmetry.
-* Player and ball detection use a COCO-pretrained detector without football-specific fine-tuning; its
-  accuracy (mAP) is not evaluated because no box annotations are available yet. Referees are not
-  distinguished from players, and the ball is detected in 59 % of frames.
+* The detector was fine-tuned on only 65 annotated frames: goalkeepers are recognised in about half of the
+  cases and ball detection did not improve measurably (10 test balls). In video, the ball is hidden on the map
+  by default because of its jitter (and because a ball in the air is projected incorrectly).
 * Temporal smoothing in video is evaluated for smoothness only (no ground-truth trajectories are available).
 * All points, including the ball, are assumed to lie on the ground plane.
 * The test set is small (41 frames, 2 matches); confidence intervals are reported throughout.
@@ -148,6 +157,7 @@ python -X utf8 src/test_homografi.py          # geometry test with a known synth
 | Confidence intervals | `python -X utf8 src/guven_araligi.py` |
 | Figures | `python -X utf8 src/ogrenme_egrisi_ciz.py` |
 | Video stability | `python -X utf8 src/video_titreme.py` |
+| Detector training / evaluation | `python -X utf8 src/kutu_veri_hazirla.py` → `src/egit_tespit.py` → `src/tespit_degerlendir.py` |
 | Inference (image / video) | `python -X utf8 src/sistem.py --model models/unet_kp_gercek_v1.pt --video match.mp4` |
 | Web interface | `python -X utf8 src/arayuz.py` |
 

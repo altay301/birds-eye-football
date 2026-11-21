@@ -137,9 +137,50 @@ The box centre would introduce a systematic error ~20× larger than the model's 
 grows for distant players (flatter viewing angle). The share of positions inside the pitch also drops
 (77 % → 74 %).
 
-## 6. Player detection (off-the-shelf YOLOv8m, COCO)
+## 6. Player, referee and ball detection
 
-No box labels exist yet, so mAP is not reported. Label-free statistics on the same 251 frames:
+### 6.1 Fine-tuned detector versus COCO baseline
+
+Box annotations: 95 frames (5 per match), 1,680 boxes (1,422 players, 120 referees, 67 goalkeepers,
+71 balls), split by match like the keypoints (train 65 / val 15 / test 15 frames). YOLOv8m initialised from
+COCO was fine-tuned for 80 epochs at 1280 px (11 min on an RTX 4070 Laptop; checkpoint selected on
+validation). Evaluation on the 15 test frames (matches 04, 11, 12; `src/tespit_degerlendir.py`,
+`results/tespit.json`). Because the COCO model has no role classes, the comparison uses the two tasks both
+models share: *person* (player, goalkeeper and referee merged) and *ball*. Operating point: confidence ≥ 0.25.
+Differences: paired frame bootstrap, B = 5,000.
+
+| | Person AP50 | Person AP50-95 | Person recall / precision | Ball AP50 | Ball recall / precision |
+|---|---|---|---|---|---|
+| COCO YOLOv8m | 0.800 | 0.777 | 0.90 / 0.49 | 0.631 | 0.80 / 0.33 |
+| **Fine-tuned (ours)** | **0.934** | 0.793 | 0.94 / **0.80** | 0.545 | 0.50 / **0.83** |
+| Difference [95 % CI] | **+0.134 [+0.062, +0.206]** | | | −0.086 [−0.363, +0.212] | recall −0.30 [−0.70, +0.11] |
+
+* **Person detection improves significantly**, mainly through precision: the COCO model also detects
+  spectators, staff and ball boys, which the annotation protocol treats as negatives.
+* **Ball:** no significant difference. The fine-tuned model produces far fewer false balls (precision
+  0.33 → 0.83) but misses more (recall 0.80 → 0.50). The test set contains only 10 balls, so the estimate
+  is very uncertain.
+* **Role classes** (fine-tuned model only), AP50: player 0.929, referee 0.591, goalkeeper 0.527, ball 0.545.
+
+**Referee separation** (detected persons at confidence ≥ 0.25 matched to ground truth; rows: true role,
+columns: predicted role):
+
+| | player | goalkeeper | referee |
+|---|---|---|---|
+| player (205) | 198 | 0 | 7 |
+| goalkeeper (10) | 4 | 5 | 1 |
+| referee (18) | 2 | 1 | **15** |
+
+15 of 18 referees (83 %) are recognised and therefore hidden on the bird's-eye map (with the COCO model all
+of them appear as players); 7 of 205 players (3 %) are wrongly hidden. Goalkeepers (42 training examples)
+are recognised only half of the time.
+
+**Annotation bias.** 92 % of the final boxes kept the exact coordinates proposed by the COCO model. Metrics
+that depend on precise box placement therefore favour the COCO model: its foot-point error with respect to the
+labels is 0.00 m (median) versus 0.05 m for the fine-tuned model, which reflects shared coordinates, not
+better localisation. AP50-95 is affected in the same direction. The reported improvements are conservative.
+
+### 6.2 Label-free statistics of the COCO model (251 frames)
 
 | Statistic | Value |
 |---|---|
@@ -148,8 +189,7 @@ No box labels exist yet, so mAP is not reported. Label-free statistics on the sa
 | Foot points inside the pitch (±3 m) | 77 % |
 
 ~23 % of person detections fall outside the pitch (assistant referees, ball boys, staff, front-row fans);
-the homography itself is used to filter them. The ball is small and motion-blurred → a football-specific
-detector is the largest expected gain (box labelling tool: `src/kutu_etiketle.py`).
+the homography itself is used to filter them.
 
 ## 7. Error analysis (U-Net v1 on 11 + 12)
 

@@ -249,6 +249,11 @@ TAKIM_RENK = {
 }
 
 
+# Kuş bakışı haritada GÖSTERİLMEYEN sınıflar: hakem ve yan hakemler oyunun parçası değil,
+# haritada sadece kalabalık yapar. Görüntü tarafında kutuları yine çizilir (tespit kontrolü için).
+HARITADA_GIZLI = {"hakem"}
+
+
 def oyunculari_ciz(img: np.ndarray, oyuncular: list[dict],
                    ayar: HaritaAyar = HaritaAyar()) -> np.ndarray:
     """
@@ -260,6 +265,8 @@ def oyunculari_ciz(img: np.ndarray, oyuncular: list[dict],
     """
     out = img.copy()
     for o in oyuncular:
+        if o.get("sinif") in HARITADA_GIZLI:
+            continue
         p = metre_to_piksel(o["x"], o["y"], ayar)
         renk = o.get("renk") or TAKIM_RENK.get(o.get("sinif", "takim_A"), (128, 128, 128))
         renk = tuple(int(c) for c in renk)

@@ -1,4 +1,8 @@
-# Annotation Protocol — Pitch Keypoints
+# Annotation Protocol
+
+Part A covers pitch keypoints, Part B bounding boxes.
+
+# Part A — Pitch Keypoints
 
 This protocol was fixed before annotation started and applied to every frame of the dataset, so that the
 target the model learns is defined consistently. Keypoint IDs refer to the template in `src/pitch.py`
@@ -77,3 +81,31 @@ This mode was used with the approval of the course instructors and is never used
   than 1.5 m are highlighted (usually a wrong ID; on very wide or lens-distorted shots correct points may
   also exceed the threshold).
 * Post-hoc check: `src/etiket_kontrol.py` lists frames with high homography error for re-inspection.
+
+# Part B — Bounding Boxes (players, goalkeepers, referees, ball)
+
+Tool: `src/kutu_etiketle.py --her-mactan 5` — 5 frames per match (95 in total), drawn evenly from the
+frames that already carry keypoint annotations, so that player positions can later be evaluated in metres
+through the manually annotated homography. Boxes proposed by a COCO-pretrained YOLOv8m (confidence ≥ 0.3,
+1280 px) are shown as suggestions and corrected by the annotator.
+
+| Class | Who |
+|---|---|
+| `oyuncu` (player) | Outfield players of both teams on the pitch |
+| `kaleci` (goalkeeper) | Goalkeepers |
+| `hakem` (referee) | Referee and assistant referees, including assistants on the touchline |
+| `top` (ball) | The match ball, on the ground or in the air, if it can be identified |
+
+Rules:
+1. **Delete** boxes of everyone else: spectators, staff, ball boys, photographers, substitutes warming up,
+   people on advertising boards. They become negatives for the detector.
+2. **Tight boxes** from the top of the head to the lowest point of the feet. The bottom edge defines the
+   foot point used for the pitch projection and must touch the feet.
+3. If the feet are hidden behind another player, extend the box to the estimated foot position; label only
+   persons of whom roughly a third or more is visible.
+4. **Ball:** tight box; when it is too blurred or hidden to be located within a few pixels, do not label it.
+5. Every person on the pitch is labelled, also when partly outside the frame (box clipped at the border).
+
+Known bias: as for keypoints, suggestion-based annotation favours the model that produced the suggestions
+(here the COCO baseline). Any improvement of a fine-tuned detector measured on these labels is therefore a
+conservative estimate.

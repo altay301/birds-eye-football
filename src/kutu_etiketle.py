@@ -13,7 +13,8 @@ anlamsızdır. Takım, her karede forma renginden K-means ile ayrılır):
 Kullanım:
     .venv\\Scripts\\python.exe src\\kutu_etiketle.py
     .venv\\Scripts\\python.exe src\\kutu_etiketle.py --video 07_h68azhf5Ik0
-    .venv\\Scripts\\python.exe src\\kutu_etiketle.py --her-mactan 5     # her maçtan eşit yayılmış 5 kare
+    .venv\\Scripts\\python.exe src\\kutu_etiketle.py --her-mactan 5     # her maçtan 5 kare (saha noktası etiketli olanlardan)
+    .venv\\Scripts\\python.exe src\\kutu_etiketle.py --her-mactan 5 --ozet   # ilerleme
 
 Tuşlar / fare:
     Sol tık KUTUNUN İÇİNE     sınıfını değiştir (oyuncu → kaleci → hakem → top → oyuncu)
@@ -157,11 +158,16 @@ def main():
     ap.add_argument("--bastan", action="store_true")
     ap.add_argument("--her-mactan", type=int, default=0,
                     help="her maçtan videoya eşit yayılmış en fazla N kare (ör. 5)")
+    ap.add_argument("--ozet", action="store_true", help="pencere açmadan ilerlemeyi yazdır")
     args = ap.parse_args()
     kareler = sorted(KARE.glob(f"{args.video}/*.jpg" if args.video else "*/*.jpg"))
     if args.her_mactan:
-        # Sadece önerisi olan kareler (homografi kurulabilen saha görüntüleri), maç başına eşit yayılmış N tane
-        kareler = [k for k in kareler if (ONERI / k.parent.name / f"{k.stem}.json").exists()]
+        # Sadece SAHA NOKTALARI ETİKETLİ kareler: kullanılabilir geniş açılar, ve elle etiketli homografi
+        # sayesinde oyuncu konumu metre cinsinden de değerlendirilebilir. Maç başına eşit yayılmış N tane.
+        def nokta_etiketli(k: Path) -> bool:
+            e = PROJE / "data" / "labels" / "noktalar" / k.parent.name / f"{k.stem}.json"
+            return e.exists() and json.loads(e.read_text(encoding="utf-8")).get("durum") == "etiketli"
+        kareler = [k for k in kareler if (ONERI / k.parent.name / f"{k.stem}.json").exists() and nokta_etiketli(k)]
         secilen = []
         for v in sorted({k.parent.name for k in kareler}):
             vk = [k for k in kareler if k.parent.name == v]
@@ -170,6 +176,12 @@ def main():
         kareler = secilen
     if not kareler:
         print("Kare yok.")
+        return
+    if args.ozet:
+        durumlar = [json.loads(etiket_yolu(k).read_text(encoding="utf-8"))["durum"] if etiket_yolu(k).exists()
+                    else "acilmadi" for k in kareler]
+        say = {d: durumlar.count(d) for d in ("etiketli", "atlandi", "acilmadi")}
+        print(f"{len(kareler)} kare | {say['etiketli']} etiketli, {say['atlandi']} atlandı, {say['acilmadi']} kaldı")
         return
     i = 0
     if not args.bastan:

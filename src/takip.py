@@ -116,8 +116,11 @@ class TakimAtayici:
         return cv2.cvtColor(np.uint8([[bgr]]), cv2.COLOR_BGR2LAB).reshape(3).astype(np.float32)
 
     def ata(self, tespitler) -> None:
-        """Tespit.renk_bgr dolu oyuncular için t.sinif = takim_A / takim_B / diger, t.ek['takim_renk']."""
-        oyuncular = [t for t in tespitler if t.sinif != "top" and t.renk_bgr is not None]
+        """
+        Tespit.renk_bgr dolu OYUNCULAR için t.sinif = takim_A / takim_B / diger, t.ek['takim_renk'].
+        Kendi tespit modelimiz kaleci ve hakemi zaten ayrı sınıf olarak verir; onlara dokunulmaz.
+        """
+        oyuncular = [t for t in tespitler if t.sinif == "oyuncu" and t.renk_bgr is not None]
         if not oyuncular:
             return
         lab = np.array([self._lab(t.renk_bgr) for t in oyuncular])
