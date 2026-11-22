@@ -66,7 +66,12 @@ def kareler():
             kume = "yeni"                    # sonradan eklenen bağımsız maç: ayrı raporlanır
         if kume not in KUMELER:
             continue
-        n = json.loads((NOKTA / e.parent.name / e.name).read_text(encoding="utf-8"))["noktalar"]
+        nd = json.loads((NOKTA / e.parent.name / e.name).read_text(encoding="utf-8"))
+        # Sadece iki etiketi de ONAYLANMIŞ kareler: atlanan karede kalmış öneri noktaları gerçek sayılmaz
+        if nd.get("durum", "etiketli") != "etiketli" or \
+                json.loads(e.read_text(encoding="utf-8")).get("durum", "etiketli") != "etiketli":
+            continue
+        n = nd["noktalar"]
         try:
             H = homografi_hesapla(np.array([p["px"] for p in n]), pitch.NOKTA_KOORD[[p["id"] for p in n]]).H
         except (ValueError, IndexError):

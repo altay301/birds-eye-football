@@ -125,6 +125,14 @@ from 0.800 (COCO model) to 0.930 (paired 95 % CI of the difference [+0.069, +0.1
 spectators and staff (precision 0.49 → 0.87). 14 of 15 detected referees are recognised and removed from the
 bird's-eye map. Ball AP50 rises from 0.631 to 0.737, not significant with 10 test balls (details and an
 annotation-bias caveat in [results §6](docs/results.md#6-player-referee-and-ball-detection)).
+On the independent match 20, referees are again recognised (23 of 25), but goalkeepers in kits not seen in
+training are called players (14 of 15) — harmless for the map, where they are still drawn.
+
+**End-to-end player map (video pipeline).** Against manual ground truth, the complete video pipeline places
+about 82 % of the players within 3 m once a shot has started (median error 0.43 m). On the independent
+match 20 it places 91.5 % of the players in the 17 frames with a map (median 0.41 m, 90th percentile 1.08 m);
+speed-adaptive smoothing (0.59 → 0.41 m) and the referee removal (68 % → 20 % visible) replicate
+([results §8.2](docs/results.md#82-player-map-accuracy-end-to-end-video-pipeline)).
 
 ### 4.4 Player position: foot point versus box centre
 
@@ -138,8 +146,8 @@ Complete tables, detection statistics and a per-frame error analysis: [docs/resu
 
 * Close-up and low-angle views near the goal expose too few non-collinear landmarks; calibration then fails
   or is incorrect. Frames showing a single penalty area are ambiguous under left/right mirror symmetry.
-* The detector was fine-tuned on only 65 annotated frames: goalkeepers remain the weakest class (AP50 0.56)
-  and the ball improvement is not statistically established (10 test balls); variants were compared with a
+* The detector was fine-tuned on only 65 annotated frames: goalkeepers remain the weakest class (AP50 0.56;
+  0.03 on match 20, whose goalkeeper kits do not occur in training) and the ball improvement is not statistically established (10 test balls); variants were compared with a
   single training seed each. In video, the ball is hidden on the map
   by default because of its jitter (and because a ball in the air is projected incorrectly).
 * Temporal smoothing in video is evaluated for smoothness only (no ground-truth trajectories are available).

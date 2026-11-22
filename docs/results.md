@@ -234,6 +234,38 @@ that depend on precise box placement therefore favour the COCO model: its foot-p
 labels is 0.00 m (median) versus 0.06 m for v3, which reflects shared coordinates, not better localisation.
 AP50-95 is affected in the same direction. The reported improvements are conservative.
 
+### 6.1.1 Independent match 20
+
+Match 20 (§2.1) was box-annotated after all development: 24 frames, 330 persons (290 players, 15 goalkeepers,
+25 referees). The ball was **not** annotated in this match (the project's goal is player positions), so only
+person and role metrics are reported (`tespit_degerlendir.py --yeni`, `results/tespit_yeni.json`).
+
+| | Person AP50 | Person AP50-95 | Recall / precision @ 0.25 | Foot-point difference to labels (median) |
+|---|---|---|---|---|
+| COCO YOLOv8m | 0.961 | 0.941 | 0.95 / 0.89 | 0.00 m |
+| Fine-tuned v3 | 0.933 | 0.820 | 0.89 / 0.95 | 0.05 m |
+| v3 − COCO [95 % CI] | −0.029 [−0.066, +0.002] | | | |
+
+**This comparison is not informative about COCO vs. v3.** The box proposals for this match again came from the
+COCO model and 93 % of the final person boxes (357 of 384) kept their coordinates exactly (13 adjusted,
+14 added, 34 proposals deleted). The COCO model is therefore scored largely against its own output (foot-point
+difference 0.00 m, AP50-95 0.94). Unlike the old test matches, this broadcast also shows few spectators or
+staff on the pitch side, so the precision advantage of v3 (0.95 vs. 0.89) has little room to show.
+What the labels *do* determine independently are the **roles**, because all proposals were class-agnostic:
+
+| True role (rows) → predicted | player | goalkeeper | referee |
+|---|---|---|---|
+| player (301) | 299 | 2 | 0 |
+| goalkeeper (15) | **14** | 1 | 0 |
+| referee (25) | 0 | 2 | **23** |
+
+* **Referees generalise** (23 of 25, AP50 0.90): yellow referee kits were seen in training.
+* **Goalkeepers do not** (1 of 15, AP50 0.03): this match's goalkeepers wear pink and near-black kits that do
+  not occur among the 42 training goalkeepers; the detector calls them players. For the map this is the
+  harmless direction — a goalkeeper labelled as player is still drawn; none was hidden as a referee.
+  Goalkeeper classification by appearance needs either many more kits or the position-based rules of the
+  video pipeline (§8.1).
+
 ### 6.2 Label-free statistics of the COCO model (251 frames)
 
 | Statistic | Value |
@@ -369,6 +401,29 @@ The cropped output video drops such frames anyway.)
   (half-visible players at the border), partly tracks held at their last position, partly positions > 3 m off.
 * Position errors differ by a few centimetres between configurations; the ground-truth boxes kept the COCO
   coordinates in 92 % of cases (annotation bias, §6), so these differences are not interpretable.
+
+**Independent replication on match 20** (`oyuncu_harita_olc.py --yeni`, `results/oyuncu_harita_yeni.json`):
+18 frames with confirmed keypoint *and* box annotations, 286 players, 25 referees; all frames aligned (pixel
+difference < 1). No parameter was changed for this run.
+
+| Configuration | Players found (all 18 frames) | … in the 17 frames with a map | Referees visible ↓ | Spurious points ↓ | Position error median / p90 | > 1 m off |
+|---|---|---|---|---|---|---|
+| A: COCO, per-frame (previous) | 84.6 % | 89.6 % | 68.0 % | 9.1 % | 0.55 / 1.51 m | 24.0 % |
+| C: own detector, per-frame | 87.8 % | 93.0 % | 16.0 % | 11.5 % | 0.59 / 1.43 m | 25.9 % |
+| B′: + track-level rules, constant smoothing | 87.4 % | 92.6 % | 20.0 % | 12.1 % | 0.59 / 1.43 m | 26.0 % |
+| **B: + speed-adaptive smoothing (current)** | 86.4 % | 91.5 % | 20.0 % | 13.1 % | **0.41 / 1.08 m** | **13.8 %** |
+
+Both main effects replicate with similar size: speed-adaptive smoothing lowers the median error from 0.59 to
+0.41 m (development matches: 0.57 → 0.43) and halves the share of players more than 1 m off (26 % → 14 %;
+development: 21 % → 12 %); the own detector with the track rules reduces visible referees from 68 % to 20 %
+(development: 71 % → 24 %). The remaining failure is one frame (117) from an unusually steep, high camera:
+the U-Net finds 6 points but assigns two of them to the wrong penalty-box corners, RANSAC keeps only 4
+consistent points (5 required), and no map is drawn — the same frame is the one calibration failure in §2.1.
+A missing map is the intended behaviour in that case.
+
+*Evaluation fix.* The first run of this experiment counted one frame (093) whose keypoint annotation had been
+skipped but still contained unconfirmed suggested points; the scripts now use only frames whose keypoint and
+box annotations are both confirmed. No frame of the development matches was affected.
 
 **Bugs found by this measurement.** The first run showed frames with a correct single-frame homography but an
 empty or wrong video map:
