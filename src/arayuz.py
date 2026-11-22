@@ -131,8 +131,8 @@ def gercek_hata(etiket_yolu: Path, H: np.ndarray) -> tuple[float, float, int] | 
 
 
 def calistir(hazir_ad, yuklenen, model_ad, oyuncu_ad, esik):
-    if yuklenen is not None:
-        img = cv2.cvtColor(yuklenen, cv2.COLOR_RGB2BGR)
+    if yuklenen:                                   # yüklenen dosyanın yolu (metin düğmesiyle yüklendi)
+        img = oku(Path(yuklenen))
         etiket_yolu = None
     elif hazir_ad:
         g = HAZIR[hazir_ad]
@@ -140,9 +140,11 @@ def calistir(hazir_ad, yuklenen, model_ad, oyuncu_ad, esik):
         etiket_yolu = ETIKET / g.parent.name / f"{g.stem}.json"
     else:
         return None, None, log("frame", [("error", "select a frame or upload an image", "uyari")])
-    kaynak = "upload" if yuklenen is not None else f'"{hazir_ad}"'
+    if img is None:
+        return None, None, log("frame", [("error", "image could not be read", "uyari")])
+    kaynak = f'--input "{Path(yuklenen).name}"' if yuklenen else f'"{hazir_ad}"'
 
-    model = saha_modeli(model_ad, round(float(esik), 2))
+    model = saha_modeli(model_ad, round(min(0.9, max(0.1, float(esik or 0.5))), 2))
     noktalar = model.tahmin(img)
     kal = ransac_homografi(noktalar)
     nokta_gorsel = cv2.cvtColor(noktalari_ciz(img, noktalar, kal), cv2.COLOR_BGR2RGB)
@@ -191,8 +193,10 @@ def video_calistir(hazir_ad, yuklenen, bas, sure, model_ad, oyuncu_ad, hedef_fps
     yol = Path(yuklenen) if yuklenen else VIDEOLAR.get(hazir_ad)
     if yol is None:
         return None, log("video", [("error", "select a match or upload a video", "uyari")])
-    komut = f'video {"upload" if yuklenen else chr(34) + hazir_ad.split(" · ")[0] + chr(34)} ' \
-            f'--start {int(bas)} --duration {int(sure)}'
+    kaynak = f'--input "{yol.name}"' if yuklenen else f'"{hazir_ad.split(" · ")[0]}"'
+    komut = f"video {kaynak} --start {int(bas)} --duration {int(sure)}"
+    hedef_fps = min(25, max(4, int(hedef_fps or 12)))
+    yumusat = yumusat == "on"
     ilerleme(0, desc="Loading models…")
     model = saha_modeli(model_ad, 0.5)
     cikti = VIDEO_CIKTI / f"{yol.stem[:40]}_{int(bas)}s_{time.strftime('%H%M%S')}.mp4"
@@ -204,7 +208,8 @@ def video_calistir(hazir_ad, yuklenen, bas, sure, model_ad, oyuncu_ad, hedef_fps
         return None, log(komut, [("result", "no main-camera play in this interval — try another --start"
                                   if s["islenen"] else "video unreadable or interval out of range", "uyari")])
     return s["yol"], log(komut, [
-        ("input", f"{s['video_sn']:.0f} s · {s['islenen']} frames · {s['kesme'] + 1} shots"),
+        ("input", f"{s['video_sn']:.0f} s · {s['islenen']} frames · {s['kesme'] + 1} "
+                  f"shot{'s' if s['kesme'] else ''}"),
         ("output", f"{s['cikti_sn']:.0f} s of live play", "vurgu"),
         ("time", f"{s['sure_sn']:.0f} s"),
     ])
@@ -222,26 +227,26 @@ def log(komut: str, satirlar: list[tuple]) -> str:
     return '<pre class="log">' + "\n".join(out) + "</pre>"
 
 
-# --- Görünüm: siyah / beyaz / pembe ----------------------------------------------------------------
-PEMBE, PEMBE_ACIK, PEMBE_KOYU = "#ff2e88", "#ff5ca3", "#d81b6a"
-SIYAH, PANEL, CIZGI, METIN, SOLUK = "#000000", "#0d0d0d", "#2a2a2a", "#ffffff", "#a3a3a3"
+# --- Görünüm: beyaz zemin, siyah yazı, pembe vurgu; yalnızca metin -----------------------------------
+# Terminal gibi: her şey eş aralıklı yazı; kutu, gölge, ikon, kaydırıcı, onay kutusu yok. Etiketler komut
+# satırı bayrağı (--match), seçenekler açılır metin listesi, düğmeler köşeli parantezli komut ([ run ]),
+# dosya yükleme de bir metin komutu ([ upload ]). Çıktı '$ komut' + hizalı satırlar. Pembe = istem/vurgu.
+PEMBE = "#e0136f"                          # beyaz zeminde okunur koyuluk
+ZEMIN, METIN, SOLUK, CIZGI = "#ffffff", "#111111", "#8a8a8a", "#d0d0d0"
 
 _t = dict(
-    body_background_fill=SIYAH, body_text_color=METIN, body_text_color_subdued=SOLUK,
-    background_fill_primary=SIYAH, background_fill_secondary=PANEL,
-    block_background_fill=SIYAH, block_border_color="#1c1c1c", block_label_background_fill=SIYAH,
-    block_shadow="none", block_radius="6px", block_border_width="1px",
+    body_background_fill=ZEMIN, body_text_color=METIN, body_text_color_subdued=SOLUK,
+    background_fill_primary=ZEMIN, background_fill_secondary=ZEMIN,
+    block_background_fill=ZEMIN, block_border_color=ZEMIN, block_label_background_fill=ZEMIN,
+    block_shadow="none", block_radius="0px", block_border_width="0px",
     block_label_text_color=SOLUK, block_title_text_color=METIN, border_color_primary=CIZGI,
-    border_color_accent=PEMBE, color_accent=PEMBE, color_accent_soft="#2a0a18",
-    input_background_fill="#141414", input_border_color=CIZGI, input_border_color_focus=PEMBE,
-    button_primary_background_fill=PEMBE, button_primary_background_fill_hover=PEMBE_ACIK,
-    button_primary_text_color=METIN, button_primary_border_color=PEMBE,
-    button_secondary_background_fill="#1a1a1a", button_secondary_background_fill_hover="#262626",
-    button_secondary_text_color=METIN, button_secondary_border_color=CIZGI,
-    slider_color=PEMBE, checkbox_background_color_selected=PEMBE, checkbox_border_color_selected=PEMBE,
-    link_text_color=PEMBE, link_text_color_hover=PEMBE_ACIK, link_text_color_visited=PEMBE_KOYU,
-    loader_color=PEMBE, table_border_color=CIZGI, table_even_background_fill=PANEL,
-    table_odd_background_fill="#121212",
+    border_color_accent=PEMBE, color_accent=PEMBE, color_accent_soft="#fde7f1",
+    input_background_fill=ZEMIN, input_border_color=CIZGI, input_border_color_focus=PEMBE,
+    button_primary_background_fill=ZEMIN, button_primary_background_fill_hover=ZEMIN,
+    button_primary_text_color=PEMBE, button_primary_border_color=ZEMIN,
+    button_secondary_background_fill=ZEMIN, button_secondary_background_fill_hover=ZEMIN,
+    button_secondary_text_color=METIN, button_secondary_border_color=ZEMIN,
+    link_text_color=PEMBE, loader_color=PEMBE, table_border_color=CIZGI,
 )
 _set_ok = set(__import__("inspect").signature(gr.themes.Base.set).parameters)
 _MONO = [gr.themes.GoogleFont("JetBrains Mono"), "Cascadia Mono", "Consolas", "monospace"]
@@ -249,10 +254,9 @@ TEMA = gr.themes.Base(primary_hue=gr.themes.colors.pink, neutral_hue=gr.themes.c
                       font=_MONO, font_mono=_MONO).set(
     **_t, **{f"{k}_dark": v for k, v in _t.items() if f"{k}_dark" in _set_ok})   # açık/koyu modda aynı
 
-# Terminal görünümü: her şey eş aralıklı yazı; kutu, gölge, dolgu yok; etiketler komut satırı bayrağı gibi
-# (--match), düğmeler köşeli parantezli komut ([ run ]), çıktı '$ komut' + hizalı satırlar. Pembe = istem/vurgu.
 CSS = f"""
 * {{ font-family: 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace !important; }}
+body, gradio-app, .gradio-container {{ background: {ZEMIN} !important; color: {METIN} !important; }}
 .gradio-container {{ width: 100% !important; max-width: 1360px !important; margin: 0 auto; font-size: 14px; }}
 .main {{ max-width: none !important; }}
 footer {{ display: none !important; }}
@@ -262,41 +266,56 @@ footer {{ display: none !important; }}
 label span, .block-title, [data-testid="block-label"], .label-wrap span {{
     color: {SOLUK} !important; font-size: 13px !important; text-transform: none !important; }}
 input, textarea, .secondary-wrap, .wrap-inner {{ background: transparent !important; border: none !important;
-    border-bottom: 1px dashed #333 !important; border-radius: 0 !important; color: {METIN} !important;
+    border-bottom: 1px dashed {CIZGI} !important; border-radius: 0 !important; color: {METIN} !important;
     box-shadow: none !important; }}
+.secondary-wrap input, .wrap-inner .secondary-wrap {{ border-bottom: none !important; }}
+.container > span:first-child, .block label > span:first-child {{ color: {SOLUK} !important; }}
 input:focus {{ border-bottom-color: {PEMBE} !important; }}
+/* metin dışı süsler: açılır liste oku, akordeon oku, ikon düğmeleri, boş görsel ikonları */
+.dropdown-arrow, .icon-wrap, .label-wrap .icon, .icon-button-wrapper, .icon-buttons,
+[data-testid="block-label"] svg, .empty svg, .unpadded_box svg {{ display: none !important; }}
+ul.options {{ background: {ZEMIN} !important; border: 1px solid {CIZGI} !important; box-shadow: none !important; }}
+ul.options li.selected, ul.options li:hover {{ background: #f5f5f5 !important; color: {PEMBE} !important; }}
 button.lg, button.md, button.sm, button.primary, button.secondary {{
     background: transparent !important; border: none !important; box-shadow: none !important;
-    color: {SOLUK} !important; justify-content: flex-start !important; padding: 4px 0 !important;
-    font-weight: 400 !important; min-width: 0 !important; }}
+    color: {METIN} !important; justify-content: flex-start !important; padding: 4px 0 !important;
+    font-weight: 400 !important; min-width: 0 !important; width: auto !important; font-size: 14px !important; }}
 button.primary {{ color: {PEMBE} !important; }}
 button:focus, button:focus-visible {{ outline: none !important; box-shadow: none !important; }}
-button.primary:hover, button.secondary:hover {{ color: {METIN} !important; }}
-#baslik {{ margin: 6px 0 4px; line-height: 1.6; }}
+button.primary:hover, button.secondary:hover {{ text-decoration: underline; }}
+.gr-accordion .label-wrap {{ padding: 4px 0 !important; }}
+.gr-accordion .label-wrap span::before {{ content: "+ "; color: {SOLUK}; }}
+.gr-accordion {{ overflow: hidden !important; }}
+#baslik {{ margin: 6px 0 4px; line-height: 1.6; color: {METIN}; }}
 #baslik .pr {{ color: {PEMBE}; }}
-#baslik .yorum {{ color: #666; }}
-.tab-nav, [role="tablist"] {{ border-bottom: 1px dashed #333 !important; }}
-.tab-nav button, button[role="tab"] {{ color: #666 !important; font-size: 13px !important; padding: 4px 14px 4px 0 !important; }}
+#baslik .yorum {{ color: {SOLUK}; }}
+.tab-nav, [role="tablist"] {{ border-bottom: 1px dashed {CIZGI} !important; }}
+.tab-nav button, button[role="tab"] {{ color: {SOLUK} !important; font-size: 13px !important;
+    padding: 4px 14px 4px 0 !important; background: transparent !important; }}
 .tab-nav button.selected, button[role="tab"][aria-selected="true"] {{ color: {METIN} !important;
     border-bottom: 1px solid {PEMBE} !important; }}
 .log {{ background: transparent !important; border: none !important; margin: 8px 0 0; padding: 0;
     font-size: 13px; line-height: 1.7; white-space: pre-wrap; color: {METIN}; }}
-.log .pr {{ color: {PEMBE}; }}
-.log .k {{ color: #666; }}
-.log .vurgu {{ color: {PEMBE}; }}
-.log .uyari {{ color: #ffb020; }}
-.log .ok {{ color: #666; }}
-.gr-accordion {{ overflow: hidden !important; }}
-::-webkit-scrollbar {{ width: 6px; height: 6px; background: {SIYAH}; }}
-::-webkit-scrollbar-thumb {{ background: #222; }}
-* {{ scrollbar-color: #222 {SIYAH}; scrollbar-width: thin; }}
-#cikti {{ border: 1px dashed #262626 !important; min-height: 420px; }}
+.log .pr, .log .vurgu {{ color: {PEMBE}; }}
+.log .k, .log .ok {{ color: {SOLUK}; }}
+.log .uyari {{ color: #c76a00; }}
+::-webkit-scrollbar {{ width: 6px; height: 6px; background: {ZEMIN}; }}
+::-webkit-scrollbar-thumb {{ background: {CIZGI}; }}
+#cikti {{ min-height: 420px; }}
 """
 
 BASLIK = """
 <div id="baslik"><span class="pr">PS&gt;</span> birds-eye-football
 <span class="yorum"># broadcast footage → top-down player map</span></div>
 """
+
+
+def _yuklendi(yol, tur: str):
+    """Metin düğmesiyle yüklenen dosya: yolu sakla, terminal satırı yaz."""
+    if not yol:
+        return None, log(f"{tur} --input", [("error", "no file", "uyari")])
+    return str(yol), log(f'{tur} --input "{Path(yol).name}"', [("loaded", "ready — run to process")])
+
 
 with gr.Blocks(title="Bird's-Eye Football") as demo:
     gr.HTML(BASLIK)
@@ -309,45 +328,51 @@ with gr.Blocks(title="Bird's-Eye Football") as demo:
                 with gr.Row():
                     v_bas = gr.Number(value=60, minimum=0, label="--start", min_width=80)
                     v_sure = gr.Number(value=30, minimum=5, maximum=300, label="--duration", min_width=80)
-                v_calis = gr.Button("[ run ] ↵", variant="primary")
+                with gr.Row():
+                    v_calis = gr.Button("[ run ]", variant="primary", min_width=60)
+                    v_yukle = gr.UploadButton("[ upload ]", file_types=["video"], type="filepath", min_width=60)
                 with gr.Accordion("--options", open=False):
-                    v_yuklenen = gr.Video(label="--input <file>", height=120)
-                    v_gorunum = gr.Radio(["side-by-side", "map-only"], value="side-by-side", label="--layout")
+                    v_gorunum = gr.Dropdown(["side-by-side", "map-only"], value="side-by-side", label="--layout")
                     v_model = gr.Dropdown(list(SAHA_MODELLERI), value=next(iter(SAHA_MODELLERI)),
                                           label="--landmarks")
-                    v_oyuncu = gr.Radio(list(OYUNCU_MODELLERI), value=next(iter(OYUNCU_MODELLERI)),
-                                        label="--detector")
-                    v_fps = gr.Slider(4, 25, value=12, step=1, label="--fps")
-                    v_yumusat = gr.Checkbox(value=True, label="--track (tracking + smoothing)")
+                    v_oyuncu = gr.Dropdown(list(OYUNCU_MODELLERI), value=next(iter(OYUNCU_MODELLERI)),
+                                           label="--detector")
+                    v_fps = gr.Number(value=12, minimum=4, maximum=25, step=1, label="--fps")
+                    v_yumusat = gr.Dropdown(["on", "off"], value="on", label="--track")
                 v_ozet = gr.HTML(log("video --help", [("ready", "pick a match, then run")]))
+                v_yuklenen = gr.State(None)
             with gr.Column(scale=3):
                 v_sonuc = gr.Video(show_label=False, autoplay=True, height=560, elem_id="cikti")
         v_calis.click(video_calistir, [v_hazir, v_yuklenen, v_bas, v_sure, v_model, v_oyuncu, v_fps, v_gorunum,
                                        v_yumusat], [v_sonuc, v_ozet])
+        v_yukle.upload(lambda y: _yuklendi(y, "video"), v_yukle, [v_yuklenen, v_ozet])
+        v_hazir.change(lambda: None, None, v_yuklenen)        # listeden seçilince yüklenen dosya bırakılır
 
     with gr.Tab("frame"):
         with gr.Row():
             with gr.Column(scale=1, min_width=320):
                 hazir = gr.Dropdown(list(HAZIR), value=next(iter(HAZIR), None), label="--frame  # unseen match")
                 with gr.Row():
-                    calis = gr.Button("[ run ] ↵", variant="primary", min_width=60)
+                    calis = gr.Button("[ run ]", variant="primary", min_width=60)
                     rastgele = gr.Button("[ random ]", min_width=60)
+                    yukle = gr.UploadButton("[ upload ]", file_types=["image"], type="filepath", min_width=60)
                 with gr.Accordion("--options", open=False):
-                    yuklenen = gr.Image(label="--input <file>", type="numpy", height=120)
                     model_ad = gr.Dropdown(list(SAHA_MODELLERI), value=next(iter(SAHA_MODELLERI)),
                                            label="--landmarks")
-                    oyuncu_ad = gr.Radio(list(OYUNCU_MODELLERI), value=next(iter(OYUNCU_MODELLERI)),
-                                         label="--detector")
-                    esik = gr.Slider(0.1, 0.9, value=0.5, step=0.05, label="--threshold")
+                    oyuncu_ad = gr.Dropdown(list(OYUNCU_MODELLERI), value=next(iter(OYUNCU_MODELLERI)),
+                                            label="--detector")
+                    esik = gr.Number(value=0.5, minimum=0.1, maximum=0.9, step=0.05, label="--threshold")
                 ozet = gr.HTML()
+                yuklenen = gr.State(None)
             with gr.Column(scale=3):
                 sonuc = gr.Image(show_label=False)
-                nokta_gorsel = gr.Image(label="landmarks")
+                nokta_gorsel = gr.Image(show_label=False)
 
         girdiler = [hazir, yuklenen, model_ad, oyuncu_ad, esik]
         ciktilar = [nokta_gorsel, sonuc, ozet]
         calis.click(calistir, girdiler, ciktilar)
         hazir.change(lambda: None, None, yuklenen).then(calistir, girdiler, ciktilar)
+        yukle.upload(lambda y: str(y) if y else None, yukle, yuklenen).then(calistir, girdiler, ciktilar)
         rastgele.click(lambda: (str(np.random.choice(list(HAZIR))), None), None, [hazir, yuklenen])
         demo.load(calistir, girdiler, ciktilar)
 
