@@ -139,7 +139,8 @@ def calistir(hazir_ad, yuklenen, model_ad, oyuncu_ad, esik):
         img = oku(g)
         etiket_yolu = ETIKET / g.parent.name / f"{g.stem}.json"
     else:
-        return None, None, "Select a frame or upload an image."
+        return None, None, log("frame", [("error", "select a frame or upload an image", "uyari")])
+    kaynak = "upload" if yuklenen is not None else f'"{hazir_ad}"'
 
     model = saha_modeli(model_ad, round(float(esik), 2))
     noktalar = model.tahmin(img)
@@ -147,21 +148,21 @@ def calistir(hazir_ad, yuklenen, model_ad, oyuncu_ad, esik):
     nokta_gorsel = cv2.cvtColor(noktalari_ciz(img, noktalar, kal), cv2.COLOR_BGR2RGB)
 
     if kal is None:
-        return nokta_gorsel, None, ("### Not a main-camera view\n"
-                                    "Too few pitch markings are visible to calibrate this frame "
-                                    "(typically a close-up, a crowd shot or a replay). Try another frame.")
+        return nokta_gorsel, None, log(f"frame {kaynak}", [
+            ("landmarks", f"{len(noktalar)}/35"),
+            ("view", "not a main-camera view — try another frame", "uyari")])
 
     birlesik, sahadakiler, kal = sonuc_uret(img, noktalar, kal=kal, yolo=OYUNCU_MODELLERI[oyuncu_ad])
     ic = int(kal.icerdeki.sum()) if kal.icerdeki is not None else len(noktalar)
     oyuncu = sum(t.sinif != "top" for t in sahadakiler)
 
-    satirlar = [f"**{len(noktalar)}** pitch landmarks · **{ic}** used for calibration",
-                f"**{oyuncu}** people on the pitch"]
+    satirlar = [("landmarks", f"{len(noktalar)}/35 detected · {ic} used"),
+                ("players", f"{oyuncu} on the pitch")]
     if etiket_yolu is not None:
         h = gercek_hata(etiket_yolu, kal.H)
         if h is not None:
-            satirlar.append(f"**{h[0]:.2f} m** calibration error vs. manual annotation")
-    return nokta_gorsel, cv2.cvtColor(birlesik, cv2.COLOR_BGR2RGB), "  \n".join(satirlar)
+            satirlar.append(("error", f"{h[0]:.2f} m (vs. manual)", "vurgu"))
+    return nokta_gorsel, cv2.cvtColor(birlesik, cv2.COLOR_BGR2RGB), log(f"frame {kaynak}", satirlar)
 
 
 def video_sureleri() -> dict[str, Path]:
@@ -189,22 +190,36 @@ def video_calistir(hazir_ad, yuklenen, bas, sure, model_ad, oyuncu_ad, hedef_fps
     from sistem import video_isle
     yol = Path(yuklenen) if yuklenen else VIDEOLAR.get(hazir_ad)
     if yol is None:
-        return None, "Select a match or upload a video."
+        return None, log("video", [("error", "select a match or upload a video", "uyari")])
+    komut = f'video {"upload" if yuklenen else chr(34) + hazir_ad.split(" · ")[0] + chr(34)} ' \
+            f'--start {int(bas)} --duration {int(sure)}'
     ilerleme(0, desc="Loading models…")
     model = saha_modeli(model_ad, 0.5)
     cikti = VIDEO_CIKTI / f"{yol.stem[:40]}_{int(bas)}s_{time.strftime('%H%M%S')}.mp4"
     s = video_isle(model, yol, cikti, bas=float(bas), sure=float(sure), hedef_fps=float(hedef_fps),
-                   yolo=OYUNCU_MODELLERI[oyuncu_ad], sadece_harita=gorunum.startswith("Map"),
+                   yolo=OYUNCU_MODELLERI[oyuncu_ad], sadece_harita=gorunum.startswith("map"),
                    yumusat=bool(yumusat), top_goster=False, kirp=True,
                    ilerleme=lambda o, m: ilerleme(o, desc=m))
     if not s["yol"]:
-        return None, ("No main-camera play in this interval — try another start time."
-                      if s["islenen"] else "The video could not be read, or the interval lies outside it.")
-    ozet = "  \n".join([
-        f"**{s['cikti_sn']:.0f} s** of live play from {s['video_sn']:.0f} s of footage",
-        f"{s['islenen']} frames · {s['kesme'] + 1} camera shots · processed in {s['sure_sn']:.0f} s",
+        return None, log(komut, [("result", "no main-camera play in this interval — try another --start"
+                                  if s["islenen"] else "video unreadable or interval out of range", "uyari")])
+    return s["yol"], log(komut, [
+        ("input", f"{s['video_sn']:.0f} s · {s['islenen']} frames · {s['kesme'] + 1} shots"),
+        ("output", f"{s['cikti_sn']:.0f} s of live play", "vurgu"),
+        ("time", f"{s['sure_sn']:.0f} s"),
     ])
-    return s["yol"], ozet
+
+
+def log(komut: str, satirlar: list[tuple]) -> str:
+    """Terminal çıktısı gibi: '$ komut' + hizalı 'anahtar  değer' satırları + 'done'."""
+    import html
+    out = [f'<span class="pr">$</span> {html.escape(komut)}']
+    for s in satirlar:
+        k, v, sinif = (*s, "") if len(s) == 2 else s
+        out.append(f'  <span class="k">{k:<10}</span><span class="{sinif}">{html.escape(v)}</span>')
+    out.append('<span class="ok">done.</span>' if not any(len(s) > 2 and s[2] == "uyari" for s in satirlar)
+               else "")
+    return '<pre class="log">' + "\n".join(out) + "</pre>"
 
 
 # --- Görünüm: siyah / beyaz / pembe ----------------------------------------------------------------
@@ -229,78 +244,105 @@ _t = dict(
     table_odd_background_fill="#121212",
 )
 _set_ok = set(__import__("inspect").signature(gr.themes.Base.set).parameters)
+_MONO = [gr.themes.GoogleFont("JetBrains Mono"), "Cascadia Mono", "Consolas", "monospace"]
 TEMA = gr.themes.Base(primary_hue=gr.themes.colors.pink, neutral_hue=gr.themes.colors.neutral,
-                      font=[gr.themes.GoogleFont("Inter"), "system-ui", "sans-serif"]).set(
+                      font=_MONO, font_mono=_MONO).set(
     **_t, **{f"{k}_dark": v for k, v in _t.items() if f"{k}_dark" in _set_ok})   # açık/koyu modda aynı
 
-# Minimal: kutular arka planla aynı renkte, ince çizgiler; pembe sadece başlık noktası, sekme ve ana düğmede.
+# Terminal görünümü: her şey eş aralıklı yazı; kutu, gölge, dolgu yok; etiketler komut satırı bayrağı gibi
+# (--match), düğmeler köşeli parantezli komut ([ run ]), çıktı '$ komut' + hizalı satırlar. Pembe = istem/vurgu.
 CSS = f"""
-.gradio-container {{ width: 100% !important; max-width: 1360px !important; margin: 0 auto; }}
+* {{ font-family: 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace !important; }}
+.gradio-container {{ width: 100% !important; max-width: 1360px !important; margin: 0 auto; font-size: 14px; }}
 .main {{ max-width: none !important; }}
 footer {{ display: none !important; }}
-.block, .form, .gr-group {{ background: transparent !important; box-shadow: none !important; }}
-.block {{ border-color: #1c1c1c !important; }}
-#baslik {{ display: flex; align-items: baseline; gap: 14px; margin: 4px 0 2px; }}
-#baslik h1 {{ font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; margin: 0; }}
-#baslik h1 span {{ color: {PEMBE}; }}
-#baslik p {{ color: {SOLUK}; font-size: 0.9rem; margin: 0; }}
-.tab-nav button, button[role="tab"] {{ font-size: 0.9rem !important; color: {SOLUK} !important; }}
-.tab-nav button.selected, button[role="tab"][aria-selected="true"] {{
-    color: {METIN} !important; border-color: {PEMBE} !important; }}
-.ozet {{ font-size: 0.88rem; color: {SOLUK}; }}
-.ozet strong {{ color: {METIN}; }}
+.block, .form, .gr-group, .wrap, .container {{ background: transparent !important; box-shadow: none !important;
+    border: none !important; }}
+.block {{ padding: 2px 0 !important; }}
+label span, .block-title, [data-testid="block-label"], .label-wrap span {{
+    color: {SOLUK} !important; font-size: 13px !important; text-transform: none !important; }}
+input, textarea, .secondary-wrap, .wrap-inner {{ background: transparent !important; border: none !important;
+    border-bottom: 1px dashed #333 !important; border-radius: 0 !important; color: {METIN} !important;
+    box-shadow: none !important; }}
+input:focus {{ border-bottom-color: {PEMBE} !important; }}
+button.lg, button.md, button.sm, button.primary, button.secondary {{
+    background: transparent !important; border: none !important; box-shadow: none !important;
+    color: {SOLUK} !important; justify-content: flex-start !important; padding: 4px 0 !important;
+    font-weight: 400 !important; min-width: 0 !important; }}
+button.primary {{ color: {PEMBE} !important; }}
+button:focus, button:focus-visible {{ outline: none !important; box-shadow: none !important; }}
+button.primary:hover, button.secondary:hover {{ color: {METIN} !important; }}
+#baslik {{ margin: 6px 0 4px; line-height: 1.6; }}
+#baslik .pr {{ color: {PEMBE}; }}
+#baslik .yorum {{ color: #666; }}
+.tab-nav, [role="tablist"] {{ border-bottom: 1px dashed #333 !important; }}
+.tab-nav button, button[role="tab"] {{ color: #666 !important; font-size: 13px !important; padding: 4px 14px 4px 0 !important; }}
+.tab-nav button.selected, button[role="tab"][aria-selected="true"] {{ color: {METIN} !important;
+    border-bottom: 1px solid {PEMBE} !important; }}
+.log {{ background: transparent !important; border: none !important; margin: 8px 0 0; padding: 0;
+    font-size: 13px; line-height: 1.7; white-space: pre-wrap; color: {METIN}; }}
+.log .pr {{ color: {PEMBE}; }}
+.log .k {{ color: #666; }}
+.log .vurgu {{ color: {PEMBE}; }}
+.log .uyari {{ color: #ffb020; }}
+.log .ok {{ color: #666; }}
+.gr-accordion {{ overflow: hidden !important; }}
+::-webkit-scrollbar {{ width: 6px; height: 6px; background: {SIYAH}; }}
+::-webkit-scrollbar-thumb {{ background: #222; }}
+* {{ scrollbar-color: #222 {SIYAH}; scrollbar-width: thin; }}
+#cikti {{ border: 1px dashed #262626 !important; min-height: 420px; }}
 """
 
 BASLIK = """
-<div id="baslik"><h1>Bird's-Eye Football<span>.</span></h1>
-<p>Broadcast footage → top-down player map</p></div>
+<div id="baslik"><span class="pr">PS&gt;</span> birds-eye-football
+<span class="yorum"># broadcast footage → top-down player map</span></div>
 """
 
 with gr.Blocks(title="Bird's-Eye Football") as demo:
     gr.HTML(BASLIK)
-    with gr.Tab("Video"):
+    with gr.Tab("video"):
         with gr.Row():
-            with gr.Column(scale=1, min_width=300):
+            with gr.Column(scale=1, min_width=320):
                 v_hazir = gr.Dropdown(list(VIDEOLAR), value=next((k for k in VIDEOLAR if "Manchester" in k),
                                                                   next(iter(VIDEOLAR), None)),
-                                      label="Match")
+                                      label="--match")
                 with gr.Row():
-                    v_bas = gr.Number(value=60, minimum=0, label="Start (s)")
-                    v_sure = gr.Number(value=30, minimum=5, maximum=300, label="Duration (s)")
-                v_calis = gr.Button("Generate", variant="primary")
-                with gr.Accordion("More options", open=False):
-                    v_yuklenen = gr.Video(label="Upload your own video", height=140)
-                    v_gorunum = gr.Radio(["Side by side", "Map only"], value="Side by side", label="Layout")
+                    v_bas = gr.Number(value=60, minimum=0, label="--start", min_width=80)
+                    v_sure = gr.Number(value=30, minimum=5, maximum=300, label="--duration", min_width=80)
+                v_calis = gr.Button("[ run ] ↵", variant="primary")
+                with gr.Accordion("--options", open=False):
+                    v_yuklenen = gr.Video(label="--input <file>", height=120)
+                    v_gorunum = gr.Radio(["side-by-side", "map-only"], value="side-by-side", label="--layout")
                     v_model = gr.Dropdown(list(SAHA_MODELLERI), value=next(iter(SAHA_MODELLERI)),
-                                          label="Pitch landmark model")
+                                          label="--landmarks")
                     v_oyuncu = gr.Radio(list(OYUNCU_MODELLERI), value=next(iter(OYUNCU_MODELLERI)),
-                                        label="Player detector")
-                    v_fps = gr.Slider(4, 25, value=12, step=1, label="Frames analysed per second")
-                    v_yumusat = gr.Checkbox(value=True, label="Player tracking and temporal smoothing")
-                v_ozet = gr.Markdown(elem_classes="ozet")
+                                        label="--detector")
+                    v_fps = gr.Slider(4, 25, value=12, step=1, label="--fps")
+                    v_yumusat = gr.Checkbox(value=True, label="--track (tracking + smoothing)")
+                v_ozet = gr.HTML(log("video --help", [("ready", "pick a match, then run")]))
             with gr.Column(scale=3):
-                v_sonuc = gr.Video(show_label=False, autoplay=True, height=560)
+                v_sonuc = gr.Video(show_label=False, autoplay=True, height=560, elem_id="cikti")
         v_calis.click(video_calistir, [v_hazir, v_yuklenen, v_bas, v_sure, v_model, v_oyuncu, v_fps, v_gorunum,
                                        v_yumusat], [v_sonuc, v_ozet])
 
-    with gr.Tab("Frame"):
+    with gr.Tab("frame"):
         with gr.Row():
-            with gr.Column(scale=1, min_width=300):
-                hazir = gr.Dropdown(list(HAZIR), value=next(iter(HAZIR), None), label="Frame (unseen match)")
+            with gr.Column(scale=1, min_width=320):
+                hazir = gr.Dropdown(list(HAZIR), value=next(iter(HAZIR), None), label="--frame  # unseen match")
                 with gr.Row():
-                    rastgele = gr.Button("Random")
-                    calis = gr.Button("Run", variant="primary")
-                with gr.Accordion("More options", open=False):
-                    yuklenen = gr.Image(label="Upload your own image", type="numpy", height=140)
+                    calis = gr.Button("[ run ] ↵", variant="primary", min_width=60)
+                    rastgele = gr.Button("[ random ]", min_width=60)
+                with gr.Accordion("--options", open=False):
+                    yuklenen = gr.Image(label="--input <file>", type="numpy", height=120)
                     model_ad = gr.Dropdown(list(SAHA_MODELLERI), value=next(iter(SAHA_MODELLERI)),
-                                           label="Pitch landmark model")
+                                           label="--landmarks")
                     oyuncu_ad = gr.Radio(list(OYUNCU_MODELLERI), value=next(iter(OYUNCU_MODELLERI)),
-                                         label="Player detector")
-                    esik = gr.Slider(0.1, 0.9, value=0.5, step=0.05, label="Landmark confidence threshold")
-                ozet = gr.Markdown(elem_classes="ozet")
+                                         label="--detector")
+                    esik = gr.Slider(0.1, 0.9, value=0.5, step=0.05, label="--threshold")
+                ozet = gr.HTML()
             with gr.Column(scale=3):
                 sonuc = gr.Image(show_label=False)
-                nokta_gorsel = gr.Image(label="Detected pitch landmarks")
+                nokta_gorsel = gr.Image(label="landmarks")
 
         girdiler = [hazir, yuklenen, model_ad, oyuncu_ad, esik]
         ciktilar = [nokta_gorsel, sonuc, ozet]
