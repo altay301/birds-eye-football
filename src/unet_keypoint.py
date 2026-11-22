@@ -250,7 +250,14 @@ def main():
     ap.add_argument("--lr", type=float, default=1e-3)
     ap.add_argument("--baslangic", help="önceki model ağırlıkları (ince ayar için)")
     ap.add_argument("--isci", type=int, default=3, help="veri yükleyici işçi sayısı (RAM'e dikkat)")
+    ap.add_argument("--tohum", type=int, default=None,
+                    help="rastgele tohum (eğitim rastgeleliğini ölçmek için aynı tarifi farklı tohumlarla tekrarla)")
     args = ap.parse_args()
+    if args.tohum is not None:
+        import random
+        random.seed(args.tohum)
+        np.random.seed(args.tohum)
+        torch.manual_seed(args.tohum)
 
     cihaz = "cuda" if torch.cuda.is_available() else "cpu"
     klasor = Path(args.veri)
