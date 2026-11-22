@@ -42,7 +42,7 @@ from scipy.optimize import linear_sum_assignment
 import pitch
 from homografi import homografi_hesapla, noktalari_donustur
 from keypoint_tahmin import model_yukle, oku
-from sistem import VideoHatti, video_kareleri
+from sistem import VideoHatti, olcek_k, video_kareleri
 
 PROJE = Path(__file__).resolve().parent.parent
 KUTU = PROJE / "data" / "labels" / "kutular"
@@ -98,7 +98,8 @@ def hatti_calistir(model, k, yolo, kararli, hiz_m=1.0):
     K = round(ISINMA_SN * fps / adim)
     bas_kare = max(0, hedef - adim * K)
     K = (hedef - bas_kare) // adim
-    hat = VideoHatti(model, yolo, yumusat=True, kararli_takim=kararli, hiz_m=hiz_m)
+    hat = VideoHatti(model, yolo, yumusat=True, kararli_takim=kararli, hiz_m=hiz_m,
+                     fps=12.0 * olcek_k(VIDEO / f"{k['video']}.mp4", HEDEF_FPS))
     son = None
     for img, kesme, _ in video_kareleri(VIDEO / f"{k['video']}.mp4", (bas_kare + 0.01) / fps,
                                         (adim * K + 1.5) / fps, HEDEF_FPS):
@@ -119,11 +120,17 @@ def eslestir(tahmin: np.ndarray, gercek: np.ndarray):
 
 def main():
     import argparse
-    global KUMELER
+    global KUMELER, HEDEF_FPS, YAPILANDIRMA
     ap = argparse.ArgumentParser()
     ap.add_argument("--yeni", action="store_true", help="sadece sonradan eklenen bağımsız maç (maç 20)")
-    if ap.parse_args().yeni:
+    ap.add_argument("--fps", type=float, default=12, help="işlenecek kare hızı (ayarlar süreye göre ölçeklenir)")
+    ap.add_argument("--sadece", nargs="+", help="sadece bu yapılandırmalar (ör. B_simdiki)")
+    args = ap.parse_args()
+    if args.yeni:
         KUMELER = {"yeni"}
+    HEDEF_FPS = args.fps
+    if args.sadece:
+        YAPILANDIRMA = {k: v for k, v in YAPILANDIRMA.items() if k in args.sadece}
     model = model_yukle(str(PROJE / "models" / "unet_kp_gercek_v1.pt"))
     kk = kareler()
     sonuc = {"kareler": [], "ozet": {}}
@@ -174,6 +181,10 @@ def main():
                   f"{(o['konum_hatasi_medyan_m'] or float('nan')):9.2f}")
     print(f"\nHizalı kare: {len({s['kare'] for s in hizali})} / {len(kk)} (piksel farkı < 20)")
     ad = "oyuncu_harita_yeni.json" if KUMELER == {"yeni"} else "oyuncu_harita.json"
+    if HEDEF_FPS != 12:
+        ad = ad.replace(".json", f"_fps{HEDEF_FPS:g}.json")
+    elif args.sadece:
+        ad = ad.replace(".json", "_" + "_".join(args.sadece) + ".json")
     (PROJE / "results" / ad).write_text(json.dumps(sonuc, indent=2, ensure_ascii=False), encoding="utf-8")
 
 

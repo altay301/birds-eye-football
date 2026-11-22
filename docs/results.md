@@ -474,6 +474,32 @@ Likely reasons: the model is already at the level of the annotation noise (0.20 
 synthetic test), and broadcast lenses bend the lines, which a homography cannot represent, so fitting all lines
 spreads the error. The method was **not** adopted and the test set was not used for it.
 
+### 8.5 Negative result: processing more frames per second
+
+The video pipeline samples about 12 frames per second. To test whether denser sampling improves tracking,
+all per-frame parameters (smoothing weights, waiting times, vote windows, the speed threshold and ByteTrack's
+`track_buffer`) were made frame-rate aware: exponential weights are rescaled to `1 − (1 − a)^(1/k)` and frame
+counts to `round(n·k)` with `k` = processed fps / processed fps at the 12-fps setting, so that every parameter
+keeps its meaning in seconds. At `k = 1` the parameters are unchanged (re-run at 12 fps: identical player
+recall and position error, one of 34 referees classified differently). Results at ~25 fps (25–30 fps depending
+on the source video; `oyuncu_harita_olc.py --fps 25`, `src/takip_fps.py`, `results/takip_fps.json`):
+
+| | 12 fps (current) | ~25 fps |
+|---|---|---|
+| Players found, val + test (27 frames) | 74.4 % | 77.7 % |
+| Position error, median (val + test / test only / match 20) | **0.43 / 0.51 / 0.41 m** | 0.50 / 0.71 / 0.45 m |
+| Referees visible (val + test / match 20) | **20.6 % / 20.0 %** | 38.2 % / 36.0 % |
+| Spurious points (val + test) | **12.3 %** | 14.3 % |
+| Distinct track ids per minute of play, val / test (lower is better) | **349** / 258 | 447 / **232** |
+| Median visible track lifetime, val / test | **2.3 / 2.0 s** | 0.8 / 1.6 s |
+| Role/team label changes per track-minute, val / test | 8.3 / 4.8 | **7.3 / 3.7** |
+| Processing time per video second | **1.2 s** | 2.4 s |
+
+Denser sampling does **not** improve tracking: tracks become shorter and, on the validation clips, more
+fragmented, and because a new track only becomes "referee" after enough votes, fragmented referee tracks are
+visible on the map more often (21 % → 38 %). Position error also increases. The 12-fps setting is kept; the
+frame-rate-aware parameters remain in the code so that other rates behave consistently.
+
 ## 9. Video demo
 
 Juventus – Inter highlight (test match 12), 15 s at 12 processed fps: 104 of 180 frames mapped (58 %; the

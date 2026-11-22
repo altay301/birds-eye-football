@@ -35,6 +35,21 @@ import pitch
 from homografi import HomografiSonuc, isareti_duzelt, noktalari_donustur
 
 
+def ema_olcekle(a: float, k: float) -> float:
+    """
+    FPS ÖLÇEKLEME. Bütün ayarlar 12 fps'de seçildi ve 'kare başına' tanımlı. İşlenen fps 12·k ise:
+      * yeni değerin ağırlığı a olan EMA → kare başına 1 − (1 − a)^(1/k)  (aynı SÜREDE aynı unutma)
+      * kare sayıları (bekleme, pencere, sabır) → round(n·k)               (aynı SÜRE)
+      * kare başına hız eşiği (m/kare) → m / k                             (aynı m/sn)
+    k = 1 → değerler değişmez (12 fps'deki ölçümlerle birebir aynı davranış).
+    """
+    return 1.0 - (1.0 - a) ** (1.0 / k)
+
+
+def _n(n: int, k: float, en_az: int = 1) -> int:
+    return max(en_az, round(n * k))
+
+
 def _izgara(h: int, w: int) -> np.ndarray:
     """Görüntünün alt %70'ine yayılmış 6×4 nokta (saha genelde burada; ufuk üstte olabilir)."""
     xs = np.linspace(0.08 * w, 0.92 * w, 6)
@@ -48,9 +63,11 @@ def _gecerli(p: np.ndarray) -> np.ndarray:
 
 class HomografiFiltresi:
     def __init__(self, alfa: float = 0.5, sicrama_m: float = 3.0, sabir: int = 3, tolerans: int = 6,
-                 sabir_ilk: int = 2):
-        self.alfa, self.sicrama_m, self.sabir, self.tolerans = alfa, sicrama_m, sabir, tolerans
-        self.sabir_ilk = sabir_ilk
+                 sabir_ilk: int = 2, k: float = 1.0):
+        # k = işlenen fps / 12 (bkz. ema_olcekle). sicrama_m bir HATA ölçüsüdür (tek karelik yanlış H'nin
+        # ızgarayı kaydırdığı mesafe), hareket hızı değil → ölçeklenmez.
+        self.alfa, self.sicrama_m = ema_olcekle(alfa, k), sicrama_m
+        self.sabir, self.tolerans, self.sabir_ilk = _n(sabir, k), _n(tolerans, k), _n(sabir_ilk, k, 2)
         self.yeniden_kuruldu = False
         self.makulsuz = 0        # makullük kontrolüyle reddedilen homografi sayısı (sıfırlanmaz)
         self.reddedilen = 0      # toplam reddedilen sıçrama (sahne kesmesinde sıfırlanmaz)
@@ -169,15 +186,18 @@ class TakimAtayici:
 
     def __init__(self, guncelleme: float = 0.05, diger_carpan: float = 3.5, oy: int = 30,
                  kararli: bool = True, fark: int = 4, rol_esik: float = 0.25, kaleci_m: float = 25.0,
-                 hakem_renk_m: float = 15.0, rol_pencere: int = 60):
-        self.guncelleme, self.diger_carpan, self.kararli, self.fark = guncelleme, diger_carpan, kararli, fark
+                 hakem_renk_m: float = 15.0, rol_pencere: int = 60, k: float = 1.0):
+        # k = işlenen fps / 12 (bkz. ema_olcekle): EMA'lar ve kare sayıları aynı SÜREYE denk gelsin.
+        self.guncelleme, self.diger_carpan, self.kararli = ema_olcekle(guncelleme, k), diger_carpan, kararli
+        self.fark = _n(fark, k)
         self.rol_esik, self.kaleci_m, self.hakem_renk_m = rol_esik, kaleci_m, hakem_renk_m
-        # Rol, izin son 'rol_pencere' karesinden (12 fps'de ~5 sn) belirlenir: tüm geçmiş kullanılırsa
+        # Rol, izin son 'rol_pencere' karesinden (~5 sn) belirlenir: tüm geçmiş kullanılırsa
         # takipçinin hakem↔oyuncu kimlik karışmasından sonra oyuncu izin sonuna kadar "hakem" kalırdı.
-        self.rol_pencere = rol_pencere
+        self.rol_pencere, self.rol_en_az = _n(rol_pencere, k), _n(3, k)
+        self.renk_a = ema_olcekle(0.1, k)          # iz rengi ve hakem rengi ortalamalarının ağırlığı
         self.kaleci_reddi = Counter()   # hangi kural kaç iz-karede "kaleci"yi düzeltti (sıfırlanmaz)
         self.hakem_rengi = None         # hakem forması rengi (Lab); aynı maçta sahne kesmesinde de geçerli
-        self.oy = oy if kararli else 15
+        self.oy = _n(oy if kararli else 15, k)
         self.sifirla()
 
     def sifirla(self):
@@ -202,7 +222,7 @@ class TakimAtayici:
         """
         n = sum(say.values())
         for rol in ("hakem", "kaleci"):
-            if say[rol] >= max(3, self.rol_esik * n):
+            if say[rol] >= max(self.rol_en_az, self.rol_esik * n):
                 return rol
         return "oyuncu"
 
@@ -237,7 +257,8 @@ class TakimAtayici:
                       if t.sinif == "hakem" and t.ek.get("id") in self.renk_ort]
         if hakem_renk:                                                      # (b) referans rengi güncelle
             m = np.mean(hakem_renk, axis=0)
-            self.hakem_rengi = m if self.hakem_rengi is None else 0.9 * self.hakem_rengi + 0.1 * m
+            a = self.renk_a
+            self.hakem_rengi = m if self.hakem_rengi is None else (1 - a) * self.hakem_rengi + a * m
         for t in kisiler:
             if t.sinif != "kaleci" or t.saha is None:
                 continue
@@ -275,7 +296,7 @@ class TakimAtayici:
                     if t.renk_bgr is not None and not kp:                   # izin ortalama forma rengi
                         lab = self._lab(t.renk_bgr)
                         m = self.renk_ort.get(tid)
-                        self.renk_ort[tid] = lab if m is None else 0.9 * m + 0.1 * lab
+                        self.renk_ort[tid] = lab if m is None else (1 - self.renk_a) * m + self.renk_a * lab
             self._hakem_kaleci_ayir(kisiler)
         oyuncular = [t for t in kisiler if t.sinif == "oyuncu" and t.renk_bgr is not None]
         for t in kisiler:                       # kaleci/hakem/diger takım rengi almaz (sınıf rengiyle çizilir)
@@ -335,8 +356,12 @@ class OyuncuTakipci:
     """
 
     def __init__(self, beta: float = 0.4, kapi_m: float = 4.0, bekle: int = 6, iz: int = 18,
-                 hiz_m: float | None = 1.0):
-        self.beta, self.kapi_m, self.bekle, self.iz_uzunluk, self.hiz_m = beta, kapi_m, bekle, iz, hiz_m
+                 hiz_m: float | None = 1.0, k: float = 1.0):
+        # k = işlenen fps / 12 (bkz. ema_olcekle). hiz_m kare başına mesafe → m/k (aynı m/sn eşiği);
+        # kapi_m tek karelik HATA eşiği (yanlış eşleşme), hareket değil → ölçeklenmez.
+        self.beta, self.kapi_m = ema_olcekle(beta, k), kapi_m
+        self.bekle, self.iz_uzunluk, self.atla = _n(bekle, k), _n(iz, k), _n(2, k)
+        self.hiz_m = hiz_m / k if hiz_m else hiz_m
         self.sifirla()
 
     def sifirla(self):
@@ -360,7 +385,7 @@ class OyuncuTakipci:
                                    "gecmis": deque([p.copy()], maxlen=self.iz_uzunluk)}
                 continue
             sicradi = np.linalg.norm(p - iz["p"]) > self.kapi_m
-            if sicradi and iz["atlanan"] < 2:
+            if sicradi and iz["atlanan"] < self.atla:
                 iz["atlanan"] += 1                         # tek karelik saçma sıçrama → yok say
                 iz["son"] = self.kare
                 continue

@@ -34,6 +34,9 @@ results/*
 !results/guven_araligi_test_yeni.json
 !results/oyuncu_harita_yeni.json
 !results/tespit_yeni.json
+!results/takip_fps.json
+!results/oyuncu_harita_fps25.json
+!results/oyuncu_harita_yeni_fps25.json
 !results/tespit_futbol_v1.json
 !results/tespit_val_secimi.json
 !results/sentetik_onizleme.jpg

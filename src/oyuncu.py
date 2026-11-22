@@ -105,8 +105,27 @@ def oyunculari_bul(goruntu: np.ndarray, model_adi: str = "yolov8n.pt",
                                           sonuc.boxes.cls.cpu().numpy())]
 
 
+def izleyici_ayari(k: float = 1.0) -> str:
+    """
+    ByteTrack ayar dosyası. Kayıp bir iz 'track_buffer' KARE tutulur (varsayılan 30 = 12 fps'de 2.5 sn).
+    k = işlenen fps / 12 → aynı SÜRE için track_buffer = 30·k. k = 1 → hazır dosya.
+    """
+    if abs(k - 1.0) < 1e-6:
+        return "bytetrack.yaml"
+    import tempfile
+    from pathlib import Path
+    import ultralytics
+    kaynak = Path(ultralytics.__file__).parent / "cfg" / "trackers" / "bytetrack.yaml"
+    metin = kaynak.read_text(encoding="utf-8")
+    metin = "\n".join((f"track_buffer: {round(30 * k)}" if s.startswith("track_buffer:") else s)
+                      for s in metin.splitlines())
+    yol = Path(tempfile.gettempdir()) / f"bytetrack_k{k:.3f}.yaml"
+    yol.write_text(metin, encoding="utf-8")
+    return str(yol)
+
+
 def oyunculari_takip_et(goruntu: np.ndarray, model_adi: str = "yolov8n.pt", sifirla: bool = False,
-                        guven_esigi: float = 0.1) -> list[Tespit]:
+                        guven_esigi: float = 0.1, izleyici: str = "bytetrack.yaml") -> list[Tespit]:
     """
     Videoda tespit + TAKİP (ByteTrack): her tespite kareler boyunca sabit bir kimlik verilir
     (t.ek['id']). ByteTrack, kutuları önceki karelerin tahmini konumlarıyla (Kalman filtresi)
@@ -117,7 +136,7 @@ def oyunculari_takip_et(goruntu: np.ndarray, model_adi: str = "yolov8n.pt", sifi
     model = _yukle(("takip", model_adi), model_adi)   # takip modeli ayrı tutulur (izleyici durumu modele bağlı)
     filtre, ad = _siniflar(model)
     sonuc = model.track(goruntu, classes=filtre, conf=guven_esigi, imgsz=_imgsz(model),
-                        persist=not sifirla, tracker="bytetrack.yaml", verbose=False)[0]
+                        persist=not sifirla, tracker=izleyici, verbose=False)[0]
     b = sonuc.boxes
     kimlik = b.id.int().cpu().numpy() if b.id is not None else [None] * len(b)
     tespitler = []

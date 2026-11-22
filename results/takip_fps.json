@@ -1,0 +1,92 @@
+{
+  "val/10_8_WZSknXW98@60s/12": {
+    "fps": 12.0,
+    "oyun_sn": 15.25,
+    "kimlik": 133,
+    "kimlik_dk": 523.2786885245902,
+    "iz_omru_medyan_sn": 0.6666666666666666,
+    "etiket_degisimi_dk": 14.198637504481894,
+    "islem_sn_video_sn": 1.4272899945576987
+  },
+  "val/10_8_WZSknXW98@60s/25": {
+    "fps": 30.0,
+    "oyun_sn": 15.566666666666666,
+    "kimlik": 179,
+    "kimlik_dk": 689.9357601713062,
+    "iz_omru_medyan_sn": 0.7,
+    "etiket_degisimi_dk": 10.247823174815805,
+    "islem_sn_video_sn": 2.9189836078219944
+  },
+  "val/02_nagW6n39jCs@120s/12": {
+    "fps": 12.5,
+    "oyun_sn": 22.72,
+    "kimlik": 66,
+    "kimlik_dk": 174.29577464788733,
+    "iz_omru_medyan_sn": 3.88,
+    "etiket_degisimi_dk": 2.436548223350254,
+    "islem_sn_video_sn": 1.0438565995958116
+  },
+  "val/02_nagW6n39jCs@120s/25": {
+    "fps": 25.0,
+    "oyun_sn": 22.56,
+    "kimlik": 77,
+    "kimlik_dk": 204.7872340425532,
+    "iz_omru_medyan_sn": 1.0,
+    "etiket_degisimi_dk": 4.293600490697199,
+    "islem_sn_video_sn": 2.0557812319861517
+  },
+  "test/12_gxsTs2qtV8A@60s/12": {
+    "fps": 12.0,
+    "oyun_sn": 28.416666666666668,
+    "kimlik": 149,
+    "kimlik_dk": 314.60410557184747,
+    "iz_omru_medyan_sn": 2.25,
+    "etiket_degisimi_dk": 6.857142857142857,
+    "islem_sn_video_sn": 1.5161987940470378
+  },
+  "test/12_gxsTs2qtV8A@60s/25": {
+    "fps": 30.0,
+    "oyun_sn": 28.2,
+    "kimlik": 114,
+    "kimlik_dk": 242.55319148936172,
+    "iz_omru_medyan_sn": 1.7,
+    "etiket_degisimi_dk": 2.0775341163690677,
+    "islem_sn_video_sn": 2.9898479421933493
+  },
+  "test/11_gsDyRUL4KX0@90s/12": {
+    "fps": 12.5,
+    "oyun_sn": 48.72,
+    "kimlik": 177,
+    "kimlik_dk": 217.9802955665025,
+    "iz_omru_medyan_sn": 1.92,
+    "etiket_degisimi_dk": 3.9404553415061296,
+    "islem_sn_video_sn": 1.1187867681185404
+  },
+  "test/11_gsDyRUL4KX0@90s/25": {
+    "fps": 25.0,
+    "oyun_sn": 48.52,
+    "kimlik": 177,
+    "kimlik_dk": 218.878812860676,
+    "iz_omru_medyan_sn": 1.12,
+    "etiket_degisimi_dk": 5.372894947874899,
+    "islem_sn_video_sn": 2.265168293317159
+  },
+  "test/04_UDsByIrG9GE@120s/12": {
+    "fps": 12.5,
+    "oyun_sn": 27.84,
+    "kimlik": 112,
+    "kimlik_dk": 241.3793103448276,
+    "iz_omru_medyan_sn": 1.76,
+    "etiket_degisimi_dk": 3.598720454949351,
+    "islem_sn_video_sn": 1.0033493320147195
+  },
+  "test/04_UDsByIrG9GE@120s/25": {
+    "fps": 25.0,
+    "oyun_sn": 27.84,
+    "kimlik": 109,
+    "kimlik_dk": 234.91379310344826,
+    "iz_omru_medyan_sn": 1.88,
+    "etiket_degisimi_dk": 3.586927641484368,
+    "islem_sn_video_sn": 1.9900929848353068
+  }
+}

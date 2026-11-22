@@ -42,7 +42,7 @@ import pitch
 from homografi import HomografiSonuc, cizgileri_goruntuye_ciz, isareti_duzelt, noktalari_donustur
 from keypoint_tahmin import SahaModeli, model_yukle, oku, ransac_homografi
 from manuel_kalibrasyon import sonuc_uret
-from oyuncu import kesik_ayaklari_tahmin_et, oyunculari_takip_et
+from oyuncu import izleyici_ayari, kesik_ayaklari_tahmin_et, oyunculari_takip_et
 from takip import HomografiFiltresi, OyuncuTakipci, TakimAtayici
 
 PROJE = Path(__file__).resolve().parent.parent
@@ -124,6 +124,23 @@ class VideoYazici:
             self.cv.release()
 
 
+def islenen_fps(video: str | Path, hedef_fps: float) -> float:
+    """Gerçekte işlenecek kare hızı: video fps / adım (ör. 60 fps videoda hedef 25 → adım 2 → 30 fps)."""
+    cap = cv2.VideoCapture(str(video))
+    fps = cap.get(cv2.CAP_PROP_FPS) or 25
+    cap.release()
+    return fps / max(1, round(fps / hedef_fps))
+
+
+def olcek_k(video: str | Path, hedef_fps: float) -> float:
+    """
+    Ayar ölçek katsayısı k. Ayarlar 'hedef 12' ile seçildi; o hedef videoya göre gerçekte 12–15 fps
+    işletiyordu (30 fps videoda adım 2 → 15). k = (bu hedefle işlenen fps) / (12 hedefiyle işlenen fps):
+    hedef 12'de k = 1 → eski ölçümlerle birebir aynı davranış.
+    """
+    return islenen_fps(video, hedef_fps) / islenen_fps(video, 12)
+
+
 def video_kareleri(video: str | Path, bas: float = 0, sure: float | None = None, hedef_fps: float = 12,
                    kesme_esigi: float = 0.35):
     """
@@ -196,12 +213,16 @@ class VideoHatti:
     """
 
     def __init__(self, model, yolo: str = "yolov8n.pt", yumusat: bool = True, top_goster: bool = False,
-                 kararli_takim: bool = True, hiz_m: float | None = 1.0):
+                 kararli_takim: bool = True, hiz_m: float | None = 1.0, fps: float = 12.0):
         # top_goster=False: top haritada gösterilmez. Hazır model topu karelerin ~%59'unda bulur, yanlış
         # tespitler olur ve havadaki top homografi yüzünden metrelerce kayar → haritada titrek görünür.
+        # fps: GERÇEKTEN işlenen kare hızı. Bütün kare başına ayarlar 12 fps'de seçildi; k = fps/12 ile
+        # aynı SÜREYE denk gelecek şekilde ölçeklenir (takip.ema_olcekle).
         self.model, self.yolo, self.yumusat, self.top_goster = model, yolo, yumusat, top_goster
-        self.filtre, self.takipci = HomografiFiltresi(), OyuncuTakipci(hiz_m=hiz_m)
-        self.takim = TakimAtayici(kararli=kararli_takim)
+        k = fps / 12.0
+        self.filtre, self.takipci = HomografiFiltresi(k=k), OyuncuTakipci(hiz_m=hiz_m, k=k)
+        self.takim = TakimAtayici(kararli=kararli_takim, k=k)
+        self.izleyici = izleyici_ayari(k)
         self.ilk = True
 
     def isle(self, img: np.ndarray, kesme: bool):
@@ -214,7 +235,7 @@ class VideoHatti:
             # Homografi yeniden kuruldu / büyük kamera değişimi kabul edildi → eski saha konumları
             # geçersiz: oyuncu konum yumuşatmasını sıfırla (eski yerden yeni yere yavaşça kaymasın).
             self.takipci.sifirla()
-        tespitler = oyunculari_takip_et(img, self.yolo, sifirla=self.ilk or kesme)
+        tespitler = oyunculari_takip_et(img, self.yolo, sifirla=self.ilk or kesme, izleyici=self.izleyici)
         self.ilk = False
         if kal is None:
             return None, [], []
@@ -257,7 +278,8 @@ def video_isle(model, video: str | Path, cikti: Path, bas: float = 0, sure: floa
                       False → o karelerde "saha görünmüyor" yazılır, video tam uzunlukta kalır.
       ilerleme      : ilerleme(oran 0..1, mesaj) çağrılır (arayüzdeki ilerleme çubuğu için)
     """
-    hat = VideoHatti(model, yolo, yumusat, top_goster)
+    gercek_fps = islenen_fps(video, hedef_fps)
+    hat = VideoHatti(model, yolo, yumusat, top_goster, fps=12.0 * olcek_k(video, hedef_fps))
     yazici, n_islenen, n_ok, n_kesme, n_yazilan, bilgi = None, 0, 0, 0, 0, {}
     parca: list[np.ndarray] = []       # kırpma modunda: haritalanan ardışık kareler (bir sahne parçası)
     t0 = time.time()
@@ -273,7 +295,7 @@ def video_isle(model, video: str | Path, cikti: Path, bas: float = 0, sure: floa
         n_yazilan += 1
 
     def parcayi_bosalt():
-        if len(parca) >= en_kisa_sn * hedef_fps:
+        if len(parca) >= en_kisa_sn * gercek_fps:
             for k in parca:
                 yaz(k)
         parca.clear()
@@ -307,7 +329,7 @@ def video_isle(model, video: str | Path, cikti: Path, bas: float = 0, sure: floa
         yazici.kapat()
     return {"islenen": n_islenen, "haritalanan": n_ok, "kesme": int(n_kesme), "sure_sn": time.time() - t0,
             "video_sn": n_islenen * bilgi.get("adim", 1) / bilgi.get("fps", 25),
-            "cikti_sn": n_yazilan / hedef_fps if n_islenen else 0,
+            "cikti_sn": n_yazilan / gercek_fps if n_islenen else 0,
             "reddedilen_sicrama": hat.filtre.reddedilen, "yol": str(cikti) if yazici else None}
 
 
