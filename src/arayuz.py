@@ -14,7 +14,7 @@ Bir yayın karesi seç (hazır listeden ya da kendi görüntünü yükle) → si
     3) YOLO → oyuncular, forma rengi → takımlar
     4) ayak noktaları × homografi → kuş bakışı mini harita
 
-Renk paleti: siyah / beyaz / pembe (TEMA + CSS aşağıda).
+Renk paleti: Visual Studio Code açık teması (TEMA + CSS aşağıda).
 
 Kullanım:  .venv\\Scripts\\python.exe -X utf8 src\\arayuz.py
            → tarayıcıda http://127.0.0.1:7860
@@ -96,14 +96,14 @@ HAZIR = hazir_kareler()
 
 
 def noktalari_ciz(img: np.ndarray, noktalar: list[dict], kal) -> np.ndarray:
-    """Model noktaları: pembe = RANSAC kabul etti, gri = attı."""
+    """Model noktaları: mavi = RANSAC kabul etti, gri = attı."""
     out = img.copy()
     s = out.shape[1] / 1280                       # büyük görüntüde yazılar okunur kalsın
     r, f, k = int(9 * s), 0.8 * s, max(1, int(2 * s))
     ic = kal.icerdeki if kal is not None and kal.icerdeki is not None else np.ones(len(noktalar), bool)
     for n, kabul in zip(noktalar, ic):
         p = tuple(np.round(n["px"]).astype(int))
-        renk = (135, 45, 255) if kabul else (150, 150, 150)       # BGR: pembe / gri
+        renk = (184, 95, 0) if kabul else (150, 150, 150)         # BGR: VS Code mavisi / gri
         cv2.circle(out, p, r, renk, -1, cv2.LINE_AA)
         cv2.circle(out, p, r, (0, 0, 0), k, cv2.LINE_AA)
         yazi = f"{n['id']} ({n['guven']:.2f})"
@@ -222,11 +222,15 @@ def log(satirlar: list[tuple]) -> str:
     return '<pre class="log">' + "\n".join(out) + "</pre>"
 
 
-# --- Görünüm: beyaz zemin, siyah yazı, pembe vurgu; yalnızca metin -----------------------------------
-# Görünüş terminal gibi (eş aralıklı yazı; kutu, gölge, ikon, kaydırıcı, onay kutusu yok; düğmeler ve dosya
-# yükleme düz metin), ama metinler sade İngilizce. Çıktı hizalı 'Anahtar  değer' satırları. Pembe = vurgu.
-PEMBE = "#e0136f"                          # beyaz zeminde okunur koyuluk
-ZEMIN, METIN, SOLUK, CIZGI = "#ffffff", "#111111", "#8a8a8a", "#d0d0d0"
+# --- Görünüm: Visual Studio Code açık teması (Light Modern + Light+ sözdizimi renkleri); yalnızca metin ---
+# Görünüş terminal / kod düzenleyici gibi (eş aralıklı yazı; kutu, gölge, ikon, kaydırıcı, onay kutusu yok;
+# düğmeler ve dosya yükleme düz metin), metinler sade İngilizce. Renkler VS Code'daki rollerine göre:
+#   VURGU   #005fb8  vurgu rengi (seçili sekme, Run, odak)       DEGISKEN #001080  değişken → etiketler, anahtarlar
+#   SAYI    #098658  sayı → önemli sonuç                          YORUM    #008000  yorum → alt başlık
+#   HATA    #a31515  string/hata → uyarılar                       METIN    #3b3b3b  düz yazı
+VURGU, DEGISKEN, SAYI, YORUM, HATA = "#005fb8", "#001080", "#098658", "#008000", "#a31515"
+ZEMIN, METIN, SOLUK, CIZGI, SECIM = "#ffffff", "#3b3b3b", "#767676", "#e5e5e5", "#e8e8e8"
+PEMBE = VURGU                              # eski ad: tema/CSS içinde vurgu rengi
 
 _t = dict(
     body_background_fill=ZEMIN, body_text_color=METIN, body_text_color_subdued=SOLUK,
@@ -234,7 +238,7 @@ _t = dict(
     block_background_fill=ZEMIN, block_border_color=ZEMIN, block_label_background_fill=ZEMIN,
     block_shadow="none", block_radius="0px", block_border_width="0px",
     block_label_text_color=SOLUK, block_title_text_color=METIN, border_color_primary=CIZGI,
-    border_color_accent=PEMBE, color_accent=PEMBE, color_accent_soft="#fde7f1",
+    border_color_accent=PEMBE, color_accent=PEMBE, color_accent_soft="#cce5ff",
     input_background_fill=ZEMIN, input_border_color=CIZGI, input_border_color_focus=PEMBE,
     button_primary_background_fill=ZEMIN, button_primary_background_fill_hover=ZEMIN,
     button_primary_text_color=PEMBE, button_primary_border_color=ZEMIN,
@@ -244,7 +248,7 @@ _t = dict(
 )
 _set_ok = set(__import__("inspect").signature(gr.themes.Base.set).parameters)
 _MONO = [gr.themes.GoogleFont("JetBrains Mono"), "Cascadia Mono", "Consolas", "monospace"]
-TEMA = gr.themes.Base(primary_hue=gr.themes.colors.pink, neutral_hue=gr.themes.colors.neutral,
+TEMA = gr.themes.Base(primary_hue=gr.themes.colors.blue, neutral_hue=gr.themes.colors.neutral,
                       font=_MONO, font_mono=_MONO).set(
     **_t, **{f"{k}_dark": v for k, v in _t.items() if f"{k}_dark" in _set_ok})   # açık/koyu modda aynı
 
@@ -258,18 +262,18 @@ footer {{ display: none !important; }}
     border: none !important; }}
 .block {{ padding: 2px 0 !important; }}
 label span, .block-title, [data-testid="block-label"], .label-wrap span {{
-    color: {SOLUK} !important; font-size: 13px !important; text-transform: none !important; }}
+    color: {DEGISKEN} !important; font-size: 13px !important; text-transform: none !important; }}
 input, textarea, .secondary-wrap, .wrap-inner {{ background: transparent !important; border: none !important;
     border-bottom: 1px dashed {CIZGI} !important; border-radius: 0 !important; color: {METIN} !important;
     box-shadow: none !important; }}
 .secondary-wrap input, .wrap-inner .secondary-wrap {{ border-bottom: none !important; }}
-.container > span:first-child, .block label > span:first-child {{ color: {SOLUK} !important; }}
+.container > span:first-child, .block label > span:first-child {{ color: {DEGISKEN} !important; }}
 input:focus {{ border-bottom-color: {PEMBE} !important; }}
 /* metin dışı süsler: açılır liste oku, akordeon oku, ikon düğmeleri, boş görsel ikonları */
 .dropdown-arrow, .icon-wrap, .label-wrap .icon, .icon-button-wrapper, .icon-buttons,
 [data-testid="block-label"] svg, .empty svg, .unpadded_box svg {{ display: none !important; }}
 ul.options {{ background: {ZEMIN} !important; border: 1px solid {CIZGI} !important; box-shadow: none !important; }}
-ul.options li.selected, ul.options li:hover {{ background: #f5f5f5 !important; color: {PEMBE} !important; }}
+ul.options li.selected, ul.options li:hover {{ background: {SECIM} !important; color: {VURGU} !important; }}
 button.lg, button.md, button.sm, button.primary, button.secondary {{
     background: transparent !important; border: none !important; box-shadow: none !important;
     color: {METIN} !important; justify-content: flex-start !important; padding: 4px 0 !important;
@@ -280,9 +284,9 @@ button.primary:hover, button.secondary:hover {{ text-decoration: underline; }}
 .gr-accordion .label-wrap {{ padding: 4px 0 !important; }}
 .gr-accordion .label-wrap span::before {{ content: "+ "; color: {SOLUK}; }}
 .gr-accordion {{ overflow: hidden !important; }}
-#baslik {{ margin: 6px 0 4px; line-height: 1.6; color: {METIN}; }}
+#baslik {{ margin: 6px 0 4px; line-height: 1.6; color: {VURGU}; font-weight: 600; }}
 #baslik .pr {{ color: {PEMBE}; }}
-#baslik .yorum {{ color: {SOLUK}; }}
+#baslik .yorum {{ color: {YORUM}; font-weight: 400; }}
 .tab-nav, [role="tablist"] {{ border-bottom: 1px dashed {CIZGI} !important; }}
 .tab-nav button, button[role="tab"] {{ color: {SOLUK} !important; font-size: 13px !important;
     padding: 4px 14px 4px 0 !important; background: transparent !important; }}
@@ -290,9 +294,11 @@ button.primary:hover, button.secondary:hover {{ text-decoration: underline; }}
     border-bottom: 1px solid {PEMBE} !important; }}
 .log {{ background: transparent !important; border: none !important; margin: 8px 0 0; padding: 0;
     font-size: 13px; line-height: 1.7; white-space: pre-wrap; color: {METIN}; }}
-.log .pr, .log .vurgu {{ color: {PEMBE}; }}
-.log .k, .log .ok {{ color: {SOLUK}; }}
-.log .uyari {{ color: #c76a00; }}
+.log .pr {{ color: {VURGU}; }}
+.log .vurgu {{ color: {SAYI}; }}
+.log .k {{ color: {DEGISKEN}; }}
+.log .ok {{ color: {SOLUK}; }}
+.log .uyari {{ color: {HATA}; }}
 ::-webkit-scrollbar {{ width: 6px; height: 6px; background: {ZEMIN}; }}
 ::-webkit-scrollbar-thumb {{ background: {CIZGI}; }}
 #cikti {{ min-height: 420px; }}
@@ -300,7 +306,7 @@ button.primary:hover, button.secondary:hover {{ text-decoration: underline; }}
 
 BASLIK = """
 <div id="baslik">Bird's-Eye Football
-<span class="yorum">Broadcast footage to a top-down player map</span></div>
+<span class="yorum">// Broadcast footage to a top-down player map</span></div>
 """
 
 
