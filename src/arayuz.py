@@ -14,7 +14,7 @@ Bir yayın karesi seç (hazır listeden ya da kendi görüntünü yükle) → si
     3) YOLO → oyuncular, forma rengi → takımlar
     4) ayak noktaları × homografi → kuş bakışı mini harita
 
-Renk paleti: #E5DFC5 / #A61C5C / #446394 / #677041 (TEMA + CSS aşağıda).
+Renk paleti: #EEE9D6 / #A61C5C / #446394 / #677041 (TEMA + CSS aşağıda).
 
 Kullanım:  .venv\\Scripts\\python.exe -X utf8 src\\arayuz.py
            → tarayıcıda http://127.0.0.1:7860
@@ -225,14 +225,14 @@ def log(satirlar: list[tuple]) -> str:
 # --- Görünüm: kullanıcının paleti; yalnızca metin ---------------------------------------------------------
 # Görünüş terminal / kod düzenleyici gibi (eş aralıklı yazı; kutu, gölge, ikon, kaydırıcı, onay kutusu yok;
 # düğmeler ve dosya yükleme düz metin), metinler sade İngilizce. Palet ve renklerin görevi:
-#   ZEMIN    #E5DFC5  krem arka plan
+#   ZEMIN    #EEE9D6  açık krem arka plan
 #   VURGU    #A61C5C  ahududu → başlık, Run, seçili sekme, önemli sonuç, saha noktaları
 #   DEGISKEN #446394  mavi    → etiketler, sonuç anahtarları
 #   YORUM    #677041  zeytin  → alt başlık, ikincil düğmeler
 # (metin ve çizgi tonları zeminden türetildi; tüm yazı kontrastı ≥ ~4:1)
 VURGU, DEGISKEN, YORUM = "#A61C5C", "#446394", "#677041"
 SAYI, HATA = VURGU, VURGU
-ZEMIN, METIN, SOLUK, CIZGI, SECIM = "#E5DFC5", "#2b2b2b", "#6b6656", "#c9c2a4", "#d9d2b4"
+ZEMIN, METIN, SOLUK, CIZGI, SECIM = "#EEE9D6", "#2b2b2b", "#6b6656", "#d3ccb0", "#e2dcc4"
 PEMBE = VURGU                              # eski ad: tema/CSS içinde vurgu rengi
 
 _t = dict(
