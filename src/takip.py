@@ -47,8 +47,12 @@ def _gecerli(p: np.ndarray) -> np.ndarray:
 
 
 class HomografiFiltresi:
-    def __init__(self, alfa: float = 0.5, sicrama_m: float = 3.0, sabir: int = 3, tolerans: int = 6):
+    def __init__(self, alfa: float = 0.5, sicrama_m: float = 3.0, sabir: int = 3, tolerans: int = 6,
+                 sabir_ilk: int = 2):
         self.alfa, self.sicrama_m, self.sabir, self.tolerans = alfa, sicrama_m, sabir, tolerans
+        self.sabir_ilk = sabir_ilk
+        self.yeniden_kuruldu = False
+        self.makulsuz = 0        # makullük kontrolüyle reddedilen homografi sayısı (sıfırlanmaz)
         self.reddedilen = 0      # toplam reddedilen sıçrama (sahne kesmesinde sıfırlanmaz)
         self.sifirla()
 
@@ -73,7 +77,27 @@ class HomografiFiltresi:
                               kaynak.nokta_hatalari, kaynak.icerdeki)
 
     def guncelle(self, kal: HomografiSonuc | None, shape) -> HomografiSonuc | None:
+        """
+        Döner: bu karede kullanılacak homografi (None → harita çizme).
+        self.yeniden_kuruldu: bu karede H sıfırdan kuruldu ya da büyük bir sıçrama kabul edildi →
+        oyuncu konumlarının zamansal yumuşatması da sıfırlanmalı (eski konumlar artık geçersiz).
+        """
+        self.yeniden_kuruldu = False
         self.izgara = _izgara(*shape[:2])
+        if kal is not None:
+            # MAKULLÜK: yayın kamerası sahaya bakar → görüntünün alt kısmındaki ızgaranın ortası sahanın
+            # içine ya da hemen yanına düşmeli. Saha dışına > 10 m düşüren H (ör. ayna simetrisi, yanlış
+            # nokta numaraları) geçersiz sayılır.
+            p = noktalari_donustur(kal.H, self.izgara)
+            p = p[_gecerli(p)]
+            if len(p) < 0.75 * len(self.izgara):          # ızgaranın dörtte birinden fazlası anlamsız yerde
+                kal = None
+                self.makulsuz += 1
+            else:
+                mx, my = np.median(p, axis=0)
+                if not (-10 < mx < pitch.SAHA_UZUNLUK + 10 and -10 < my < pitch.SAHA_GENISLIK + 10):
+                    kal = None
+                    self.makulsuz += 1
         if kal is None:                                   # bu karede H yok → kısa süre öncekiyle devam
             self.kayip += 1
             if self.kayip > self.tolerans:
@@ -82,8 +106,19 @@ class HomografiFiltresi:
         self.kayip = 0
         yeni = noktalari_donustur(kal.H, self.izgara)
         if self.kal is None:
-            if _gecerli(yeni).sum() >= 4:
-                self.saha, self.kal = yeni, self._kur(yeni, kal)
+            # BAŞLANGIÇTA DA ISRAR: sahne kesmesinden sonraki ilk homografi sık sık yanlıştır (ölçüldü:
+            # bir çekimin ilk H'si ızgarayı 46 m yanlış yere koydu ve filtre ona kilitlendi). Filtre ancak
+            # 'sabir_ilk' ardışık homografi birbirini tutarsa başlar; o zamana kadar harita çizilmez.
+            if _gecerli(yeni).sum() < 4:
+                return None
+            if self.aday:
+                ok = _gecerli(yeni) & _gecerli(self.aday[-1])
+                if ok.sum() < 4 or np.median(np.linalg.norm(yeni[ok] - self.aday[-1][ok], axis=1)) > self.sicrama_m:
+                    self.aday = []
+            self.aday.append(yeni)
+            if len(self.aday) >= self.sabir_ilk:
+                self.saha, self.kal, self.aday = yeni, self._kur(yeni, kal), []
+                self.yeniden_kuruldu = True
             return self.kal
         ok = _gecerli(yeni) & _gecerli(self.saha)
         if ok.sum() < 4:
@@ -96,6 +131,7 @@ class HomografiFiltresi:
             self.aday.append(yeni)
             if len(self.aday) >= self.sabir:
                 self.saha, self.kal, self.aday = yeni, self._kur(yeni, kal), []
+                self.yeniden_kuruldu = True             # gerçek kamera hareketi kabul edildi
             else:
                 self.reddedilen += 1
             return self.kal
@@ -314,11 +350,15 @@ class OyuncuTakipci:
                 self.izler[tid] = {"p": p, "son": self.kare, "atlanan": 0, "t": t,
                                    "gecmis": deque([p.copy()], maxlen=self.iz_uzunluk)}
                 continue
-            if np.linalg.norm(p - iz["p"]) > self.kapi_m and iz["atlanan"] < 2:
+            sicradi = np.linalg.norm(p - iz["p"]) > self.kapi_m
+            if sicradi and iz["atlanan"] < 2:
                 iz["atlanan"] += 1                         # tek karelik saçma sıçrama → yok say
                 iz["son"] = self.kare
                 continue
-            a = 1.0 if t.sinif == "top" else self.beta    # top hızlı: yumuşatma yok
+            # Sıçrama ısrar ettiyse gerçektir (ör. kimlik düzeldi): ortalamayla yavaşça kaydırma, doğrudan atla.
+            a = 1.0 if (t.sinif == "top" or sicradi) else self.beta   # top hızlı: yumuşatma yok
+            if sicradi:
+                iz["gecmis"].clear()
             iz["p"] = a * p + (1 - a) * iz["p"]
             iz["son"], iz["atlanan"], iz["t"] = self.kare, 0, t
             iz["gecmis"].append(iz["p"].copy())

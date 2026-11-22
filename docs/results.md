@@ -270,12 +270,12 @@ with identical detections and tracks (`src/takim_tutarlilik.py`, `results/takim_
 
 | Clip | Label changes per 100 track-frames, per-frame → track-level | Black *other* markers on the map, per-frame → track-level |
 |---|---|---|
-| 12 (60–100 s) | 2.07 → **1.00** | 2.2 % → 0 % |
-| 11 (90–130 s) | 2.54 → **0.83** | 5.4 % → 0 % |
-| 04 (120–160 s) | 1.41 → **0.44** | 1.3 % → 0 % |
+| 12 (60–100 s) | 2.06 → **1.30** | 2.2 % → 0 % |
+| 11 (90–130 s) | 2.79 → **0.96** | 8.8 % → 0 % |
+| 04 (120–160 s) | 1.76 → **0.48** | 2.3 % → 0 % |
 
 Both rows use the same detections, tracks and the improved jersey-colour measurement (local grass model);
-only the assignment logic differs. Label changes drop by 52–69 %. With the goalkeeper rules, no frame shows two
+only the assignment logic differs (numbers after the filter fixes of §8.2). Label changes drop by 37–73 %. With the goalkeeper rules, no frame shows two
 goalkeepers in the same half (previously 11 and 13 frames in clips 11 and 12). About 6 % of track-frames in
 clip 11 are hidden as *other* (colour outliers or goalkeeper duplicates), some of which may be players. Remaining
 label changes are largely attributable to identity switches of the tracker when players overlap.
@@ -300,34 +300,41 @@ manual ground truth (`src/oyuncu_harita_olc.py`, `results/oyuncu_harita.json`):
 * prediction: all points the pipeline draws on the map (referees and ball excluded, faint points included);
   Hungarian matching with a 3 m gate.
 
-| Configuration | Players found | … in team colour | Referees visible ↓ | Spurious points ↓ | Position error (median) |
-|---|---|---|---|---|---|
-| A: COCO detector, per-frame assignment (previous system) | **83.0 %** | 98.3 % | 79.4 % | 20.7 % | **0.45 m** |
-| C: own detector, per-frame assignment | 82.3 % | 95.2 % | 35.3 % | 19.4 % | 0.49 m |
-| **B: own detector + track-level rules (current)** | 81.9 % | 98.3 % | **32.4 %** | **18.6 %** | 0.49 m |
+| Configuration | Players found | … excluding 2 first-frame-of-shot frames* | … in team colour | Referees visible ↓ | Spurious points ↓ | Position error (median) |
+|---|---|---|---|---|---|---|
+| A: COCO detector, per-frame assignment (previous system) | 75.1 % | 83.0 % | 98.5 % | 70.6 % | 13.9 % | 0.52 m |
+| C: own detector, per-frame assignment | 75.3 % | 83.2 % | 94.8 % | 38.2 % | **11.1 %** | 0.54 m |
+| **B: own detector + track-level rules (current)** | 74.7 % | 82.5 % | **98.8 %** | **26.5 %** | 11.5 % | 0.57 m |
 
-(27 frames, 470 players, 34 referees. 25 of the frames were never looked at while developing the video rules;
-on those the numbers differ by less than 1.5 points.)
+(27 frames, 430 players, 34 referees. 25 of the frames were never looked at while developing the video rules;
+on those the numbers differ by less than 2 points. *Two annotated frames are the very first frame of a shot
+— one directly after a scene cut, one at second 0 of a video. The homography filter needs two consistent
+frames to start, so the map appears one sampled frame (~0.08 s) later; the second column excludes these frames.
+The cropped output video drops such frames anyway.)
 
-* **Players:** about 82 % of the players are on the map, within 3 m and with a median error of about half a
-  metre. The detector and the rules hardly change this; the remaining misses come mostly from the keypoint
-  stage (one very wide frame with an 8.7 m homography error loses all 22 players) and from players at the image
-  border.
-* **Referees:** the own detector and the rules reduce visible referees from 79 % to 32 %. The remaining third
-  are mostly shown as faint "uncertain" points rather than as team players.
-* **Spurious points** (~19 %): points without a ground-truth person within 3 m — partly people not
-  annotated (half-visible players at the border), partly tracks held at their last position after
-  disappearing, partly positions more than 3 m off.
-* The position error is about 0.04 m higher with the own detector; the ground-truth boxes kept the COCO
-  coordinates in 92 % of cases (annotation bias, §6), so this small difference is not interpretable.
+* **Players:** about 83 % of the players are on the map when the shot has started, within 3 m and with a
+  median error of about 0.55 m (90th percentile 1.35 m). The detector and the rules hardly change this. The
+  largest single loss is a very wide pre-match frame whose homography is 8.7 m wrong; it is now rejected
+  (no map) instead of showing 22 players in wrong places.
+* **Referees:** the own detector and the track-level rules reduce visible referees from 71 % to 27 %.
+* **Spurious points** (~11 %): points without a ground-truth person within 3 m — partly people not annotated
+  (half-visible players at the border), partly tracks held at their last position, partly positions > 3 m off.
+* Position errors differ by a few centimetres between configurations; the ground-truth boxes kept the COCO
+  coordinates in 92 % of cases (annotation bias, §6), so these differences are not interpretable.
 
-**A bug found by this measurement.** The first run showed four frames with a correct single-frame homography
-(0.3–0.75 m) but an empty map. Cause: the homography filter re-estimates `H` with `cv2.findHomography`, which
-normalises `H[2,2] = 1` and can flip the sign of `H`; the projection code interprets negative depth as "behind
-the camera" and discards all points. The sign normalisation (`isareti_duzelt`) used elsewhere had not been
-applied in the filter. After the fix, players found rose from 67–69 % to 82–83 % for all configurations. The
-stability measurements of §8 and §8.1 (test clips 04, 11, 12) were re-run and are unchanged — the sign flip did
-not occur in those clips.
+**Bugs found by this measurement.** The first run showed frames with a correct single-frame homography but an
+empty or wrong video map:
+1. *Sign flip*: the homography filter re-estimated `H` with `cv2.findHomography`, which normalises
+   `H[2,2] = 1` and can flip the sign of `H`; the projection code interprets negative depth as "behind the
+   camera" and discarded all points. Fixed with the sign normalisation used elsewhere (`isareti_duzelt`).
+2. *Locking onto a wrong start*: after a scene cut the filter accepted the first homography of the shot, which
+   was 46 m off in one case, and then rejected the correct ones as "jumps"; player positions were then
+   smoothed slowly from the wrong to the right place. Fixes: the filter starts only after two consistent
+   homographies, rejects implausible ones (fewer than 75 % of the grid points or the grid centre more than 10 m
+   outside the pitch), and resets player position smoothing whenever the homography is (re)initialised or a
+   jump is accepted.
+The stability measurements of §8 and §8.1 were re-run after the fixes; changes are within a few hundredths of a
+metre or label change per 100 track-frames.
 
 ## 9. Video demo
 

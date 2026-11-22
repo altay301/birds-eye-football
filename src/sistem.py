@@ -210,6 +210,10 @@ class VideoHatti:
             self.filtre.sifirla(), self.takim.sifirla(), self.takipci.sifirla()
         kal_ham = ransac_homografi(self.model.tahmin(img))
         kal = self.filtre.guncelle(kal_ham, img.shape) if self.yumusat else kal_ham
+        if self.yumusat and self.filtre.yeniden_kuruldu:
+            # Homografi yeniden kuruldu / büyük kamera değişimi kabul edildi → eski saha konumları
+            # geçersiz: oyuncu konum yumuşatmasını sıfırla (eski yerden yeni yere yavaşça kaymasın).
+            self.takipci.sifirla()
         tespitler = oyunculari_takip_et(img, self.yolo, sifirla=self.ilk or kesme)
         self.ilk = False
         if kal is None:

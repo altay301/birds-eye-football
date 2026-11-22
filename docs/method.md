@@ -130,6 +130,11 @@ out in HSV, median colour, K-means (k = 2) in Lab space; the map shows each team
     is re-estimated from the averaged correspondences (followed by sign normalisation, see results §8.2). This replaces the earlier element-wise averaging of
     `H` matrices (α = 0.3), which has no geometric meaning and proved unstable on one validation clip (§8 of
     the results).
+  * *Plausibility*: a homography is discarded if fewer than 75 % of the grid points project to sensible pitch
+    coordinates or if the grid centre lies more than 10 m outside the pitch (a broadcast camera looks at the pitch).
+  * *Start*: after a scene cut the filter starts only once two consecutive homographies agree (the first
+    homography of a shot was found to be unreliable). Whenever the filter (re)starts or accepts a jump,
+    player position smoothing is reset, so players are not dragged from outdated positions.
   * If no homography is found, the previous one is reused for up to 6 sampled frames; otherwise the frame is
     rendered with a greyed-out map and the label "saha görünmüyor" (pitch not visible).
 * **Player tracking** (`oyunculari_takip_et`, ByteTrack via Ultralytics). Detections are associated over time
