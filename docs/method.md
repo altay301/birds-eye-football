@@ -138,15 +138,26 @@ out in HSV, median colour, K-means (k = 2) in Lab space; the map shows each team
 * **Position smoothing** (`OyuncuTakipci`). Per identity, pitch positions are averaged exponentially
   (β = 0.4; no smoothing for the ball). A single-frame jump > 4 m is ignored as an association or detection
   error; tracks unseen for up to 6 frames are held at their last position; the last ~1.5 s are drawn as a trail.
+* **Jersey colour** (`forma_rengi`): torso region of the box; grass pixels are removed by comparison with the
+  *local* grass colour (median Lab colour of the ground around the player, distance > 18) instead of a fixed
+  green hue range, which failed on yellowish grass (hue ≈ 32) and contaminated far-away players' colours.
 * **Track-level role and team assignment** (`TakimAtayici`). Decisions are made per track, not per frame:
-  * *Role vote*: the detector's role (player / goalkeeper / referee) is a majority vote over the track's last
-    30 frames, so a referee predicted as a player in a single frame stays a referee (hidden on the map).
-  * *Team colours*: two colour centres are initialised by K-means at the start of a shot and updated slowly
-    (rate 0.05); each player is assigned to the nearest centre, with a vote over its last 30 frames.
-    Colours measured while a box overlaps another box by more than 20 % of its area (mixed jerseys) are not
-    counted. A colour farther than 2.5 × the typical within-team spread from both centres is labelled *other*.
-  * *Hysteresis*: a displayed label changes only when the new candidate leads the current one by 4 votes.
-  * Referees and *other* are not drawn on the map.
+  * *Asymmetric role rule*: on validation frames the detector calls 74 % of referees "referee" but only
+    6 % of players; it tends to miss roles rather than invent them. A track is a referee (or goalkeeper) if at
+    least 25 % (and ≥ 3) of all its predictions say so; otherwise a player. A majority vote would turn
+    referees recognised in only 20–45 % of frames into players.
+  * *Goalkeeper vs. referee*: (a) a "goalkeeper" farther than 25 m from both goal lines is hidden;
+    (b) a referee jersey colour is learnt from confidently recognised referees, and a "goalkeeper" whose
+    colour lies within 15 Lab units of it becomes a referee; (c) at most one goalkeeper per half — the one
+    closest to the goal line.
+  * *Team colours*: two colour centres are initialised by K-means at the start of each shot (only once the two
+    clusters are separated by at least twice the within-team spread and each has ≥ 3 players, otherwise the
+    next frame is used) and updated slowly (rate 0.05). Colours measured while a box overlaps another box by
+    more than 20 % of its area are not counted. A colour farther than 3.5 × the within-team spread from both
+    centres is labelled *other*. Keeping the centres across shots was tried and rejected: lighting changes
+    between cameras turned one team into *other*.
+  * *Hysteresis*: a displayed team label changes only when the new candidate leads the current one by 4 votes.
+  * Referees, *other* and not yet assigned players are not drawn on the map.
 * **Scene cropping** (default): frames without a homography are removed from the output video, and mapped
   segments shorter than 1 s are dropped, so the result plays as a continuous bird's-eye video
   (`--kirpma` restores full-length output with a "pitch not visible" panel).

@@ -117,9 +117,9 @@ def _kapali(kutular: np.ndarray, oran: float = 0.2) -> np.ndarray:
 class TakimAtayici:
     """
     kararli=True (varsayılan) — kararları KARE değil İZ (takip kimliği) düzeyinde verir:
-      1) ROL OYLAMASI: tespit modeli rolü (oyuncu/kaleci/hakem) her karede yeniden tahmin eder ve
-         arada yanılır; bir izin rolü son 'oy_rol' karedeki tahminlerin çoğunluğudur. Böylece hakem
-         tek bir karede "oyuncu" dense bile hakem kalır (haritada gizli).
+      1) ROL KARARI: tespit modeli rolü (oyuncu/kaleci/hakem) her karede yeniden tahmin eder ve
+         arada yanılır. Rol, izin TÜM geçmişindeki tahminlerden asimetrik bir eşikle belirlenir
+         (bkz. _rol): hakem birkaç karede "oyuncu" dense bile hakem kalır (haritada gizli).
       2) KAPANMA KONTROLÜ: kutusu başka kutuyla belirgin örtüşen oyuncunun o karedeki forma rengi
          (iki formanın karışımı) takım oylamasına KATILMAZ.
       3) Uzun takım oylaması (son 'oy' kare) + HİSTEREZİS: etiket ancak yeni aday mevcut etiketi
@@ -127,18 +127,41 @@ class TakimAtayici:
     kararli=False — önceki davranış (karşılaştırma için).
     """
 
-    def __init__(self, guncelleme: float = 0.05, diger_carpan: float = 2.5, oy: int = 30, oy_rol: int = 30,
-                 kararli: bool = True, fark: int = 4):
+    def __init__(self, guncelleme: float = 0.05, diger_carpan: float = 3.5, oy: int = 30,
+                 kararli: bool = True, fark: int = 4, rol_esik: float = 0.25, kaleci_m: float = 25.0,
+                 hakem_renk_m: float = 15.0):
         self.guncelleme, self.diger_carpan, self.kararli, self.fark = guncelleme, diger_carpan, kararli, fark
-        self.oy, self.oy_rol = (oy, oy_rol) if kararli else (15, 1)
+        self.rol_esik, self.kaleci_m, self.hakem_renk_m = rol_esik, kaleci_m, hakem_renk_m
+        self.kaleci_reddi = Counter()   # hangi kural kaç iz-karede "kaleci"yi düzeltti (sıfırlanmaz)
+        self.hakem_rengi = None         # hakem forması rengi (Lab); aynı maçta sahne kesmesinde de geçerli
+        self.oy = oy if kararli else 15
         self.sifirla()
 
     def sifirla(self):
+        # Takım renkleri her çekimde yeniden öğrenilir: ışık ve kamera değişince aynı forma farklı görünür
+        # (kalıcı tutmak denendi: ikinci çekimde beyaz formalar "diğer"e düştü). Kötü başlangıç
+        # (iki merkezin aynı takıma oturması) ayrıklık kontrolüyle engellenir (bkz. ata).
         self.merkez = None       # (2, 3) Lab
         self.yayilim = None      # takım içi tipik renk uzaklığı
         self.oylar: dict[int, deque] = {}
-        self.rol_oylari: dict[int, deque] = {}
+        self.rol_sayac: dict[int, Counter] = {}
+        self.renk_ort: dict[int, np.ndarray] = {}   # iz → ortalama forma rengi (Lab, kapanmasız kareler)
         self.secili: dict[tuple, str] = {}       # (tür, iz) → şu an gösterilen etiket (histerezis için)
+
+    def _rol(self, say: Counter) -> str:
+        """
+        ASİMETRİK ROL KURALI. Val karelerinde (v3 modeli): gerçek oyuncuya %6 "hakem", %7 "kaleci"
+        deniyor; gerçek hakeme %74 "hakem", kaleciye %57 "kaleci". Model rolü KAÇIRMAYA yatkın ama
+        nadiren UYDURUYOR → çoğunluk oyu hakemleri oyuncu sayar. Kural: izin tüm geçmişinde en az
+        'rol_esik' oranında (ve en az 3 kez) hakem denmişse hakem; kaleci için aynı. Oyuncunun yanlış
+        tahmin oranı (%6–7) bu eşiğin çok altında → 30 karelik bir oyuncu izinin eşiği tesadüfen
+        aşma olasılığı çok küçük (binom).
+        """
+        n = sum(say.values())
+        for rol in ("hakem", "kaleci"):
+            if say[rol] >= max(3, self.rol_esik * n):
+                return rol
+        return "oyuncu"
 
     def _karar(self, tur: str, tid: int, oylar: deque) -> str:
         """
@@ -156,18 +179,65 @@ class TakimAtayici:
     def _lab(bgr) -> np.ndarray:
         return cv2.cvtColor(np.uint8([[bgr]]), cv2.COLOR_BGR2LAB).reshape(3).astype(np.float32)
 
+    def _hakem_kaleci_ayir(self, kisiler) -> None:
+        """
+        Hakem ve kaleci ikisi de takımlardan farklı renk giyer; model ikisini karıştırabilir.
+        Üç futbol bilgisi kullanılır (sırayla):
+          a) KONUM: kaleci kendi ceza sahası çevresindedir. Kaleye 'kaleci_m' metreden uzakta
+             "kaleci" denen kişi → diger (gizli).
+          b) HAKEM RENGİ: güvenle hakem denen izlerin forma renginden bir "hakem rengi" öğrenilir
+             (sahne boyunca). Rengi buna 'hakem_renk_m' (Lab) mesafeden yakın "kaleci" → hakem.
+          c) BENZERSİZLİK: her yarı sahada en fazla bir kaleci olur. Birden fazla aday varsa
+             kale çizgisine EN YAKIN olan kaleci kalır, diğerleri → diger.
+        """
+        hakem_renk = [self.renk_ort[t.ek["id"]] for t in kisiler
+                      if t.sinif == "hakem" and t.ek.get("id") in self.renk_ort]
+        if hakem_renk:                                                      # (b) referans rengi güncelle
+            m = np.mean(hakem_renk, axis=0)
+            self.hakem_rengi = m if self.hakem_rengi is None else 0.9 * self.hakem_rengi + 0.1 * m
+        for t in kisiler:
+            if t.sinif != "kaleci" or t.saha is None:
+                continue
+            if self.kaleci_m < t.saha[0] < pitch.SAHA_UZUNLUK - self.kaleci_m:               # (a)
+                t.sinif = "diger"
+                self.kaleci_reddi["konum"] += 1
+                continue
+            renk = self.renk_ort.get(t.ek.get("id"))
+            if self.hakem_rengi is not None and renk is not None and \
+                    np.linalg.norm(renk - self.hakem_rengi) < self.hakem_renk_m:              # (b)
+                t.sinif = "hakem"
+                self.kaleci_reddi["renk"] += 1
+        for sol in (True, False):                                           # (c) yarı saha başına bir kaleci
+            adaylar = [t for t in kisiler if t.sinif == "kaleci" and t.saha is not None
+                       and (t.saha[0] < pitch.SAHA_UZUNLUK / 2) == sol]
+            if len(adaylar) > 1:
+                cizgiye = (lambda t: t.saha[0]) if sol else (lambda t: pitch.SAHA_UZUNLUK - t.saha[0])
+                for t in sorted(adaylar, key=cizgiye)[1:]:
+                    t.sinif = "diger"
+                    self.kaleci_reddi["benzersizlik"] += 1
+
     def ata(self, tespitler) -> None:
         """
         Kişiler için t.sinif = takim_A / takim_B / diger / kaleci / hakem, oyunculara t.ek['takim_renk'].
         """
         kisiler = [t for t in tespitler if t.sinif != "top"]
         if self.kararli:
-            for t in kisiler:                                               # 1) rol oylaması
+            kap = _kapali(np.array([t.kutu for t in kisiler], float).reshape(-1, 4))
+            for t, kp in zip(kisiler, kap):                                 # 1) rol kararı (izin tüm geçmişi)
                 tid = t.ek.get("id")
                 if tid is not None:
-                    self.rol_oylari.setdefault(tid, deque(maxlen=self.oy_rol)).append(t.sinif)
-                    t.sinif = self._karar("rol", tid, self.rol_oylari[tid])
+                    say = self.rol_sayac.setdefault(tid, Counter())
+                    say[t.sinif] += 1
+                    t.sinif = self._rol(say)
+                    if t.renk_bgr is not None and not kp:                   # izin ortalama forma rengi
+                        lab = self._lab(t.renk_bgr)
+                        m = self.renk_ort.get(tid)
+                        self.renk_ort[tid] = lab if m is None else 0.9 * m + 0.1 * lab
+            self._hakem_kaleci_ayir(kisiler)
         oyuncular = [t for t in kisiler if t.sinif == "oyuncu" and t.renk_bgr is not None]
+        for t in kisiler:                       # kaleci/hakem/diger takım rengi almaz (sınıf rengiyle çizilir)
+            if t.sinif not in ("oyuncu",) and not t.sinif.startswith("takim"):
+                t.ek.pop("takim_renk", None)
         if not oyuncular:
             return
         kapali = (_kapali(np.array([t.kutu for t in oyuncular], float)) if self.kararli
@@ -180,9 +250,13 @@ class TakimAtayici:
             cv2.setRNGSeed(0)
             kriter = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 50, 0.1)
             _, e, m = cv2.kmeans(temiz, 2, None, kriter, 10, cv2.KMEANS_PP_CENTERS)
-            self.merkez = m
             d = np.linalg.norm(temiz - m[e.ravel()], axis=1)
-            self.yayilim = max(8.0, float(np.median(d)))
+            yayilim = max(8.0, float(np.median(d)))
+            # Merkezleri ancak iki küme gerçekten ayrıksa kur: aradaki mesafe takım içi yayılımın en az
+            # 2 katı ve her kümede en az 3 oyuncu. Değilse (ör. karede tek takım baskın) sonraki kareyi bekle.
+            if self.kararli and (np.linalg.norm(m[0] - m[1]) < 2 * yayilim or np.bincount(e.ravel(), minlength=2).min() < 3):
+                return
+            self.merkez, self.yayilim = m, yayilim
         d = np.linalg.norm(lab[:, None, :] - self.merkez[None], axis=2)      # (n, 2)
         en_yakin = d.argmin(1)
         diger = d.min(1) > self.diger_carpan * self.yayilim

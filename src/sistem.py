@@ -229,6 +229,12 @@ class VideoHatti:
                           "id": t.ek.get("id")} for t in sahadakiler]
         if not self.top_goster:
             oyuncular = [o for o in oyuncular if o["sinif"] != "top"]
+        # Her yarı sahada en fazla bir kaleci (kısa süre görünmeyip son yerinde tutulan izler dahil):
+        # kale çizgisine en yakın olan kalır, diğerleri gizlenir.
+        for sol in (True, False):
+            k = [o for o in oyuncular if o["sinif"] == "kaleci" and (o["x"] < pitch.SAHA_UZUNLUK / 2) == sol]
+            for o in sorted(k, key=lambda o: o["x"] if sol else pitch.SAHA_UZUNLUK - o["x"])[1:]:
+                o["sinif"] = "diger"
         return kal, sahadakiler, oyuncular
 
 

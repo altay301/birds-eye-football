@@ -121,6 +121,10 @@ def sonuc_uret(goruntu: np.ndarray, noktalar: list[dict], kal=None,
         if np.isnan(x) or not (-2 <= x <= pitch.SAHA_UZUNLUK + 2 and -2 <= y <= pitch.SAHA_GENISLIK + 2):
             continue
         t.saha = (float(x), float(y))
+        # Kaleci kendi ceza sahası çevresinde durur: kaleye 25 m'den uzakta "kaleci" denen kişi
+        # büyük olasılıkla hakemdir → haritada gizlenir (pitch.HARITADA_GIZLI)
+        if t.sinif == "kaleci" and 25 < x < pitch.SAHA_UZUNLUK - 25:
+            t.sinif = "diger"
         sahadakiler.append(t)
 
     # --- Sol: maç görüntüsü + saha çizgileri + kutular ---

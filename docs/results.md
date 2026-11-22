@@ -268,16 +268,23 @@ cause was per-frame decision making. Track-level role voting, occlusion-aware co
 (§7 of the method) were compared with the previous per-frame assignment on 40 s clips of the test matches,
 with identical detections and tracks (`src/takim_tutarlilik.py`, `results/takim_tutarlilik.json`):
 
-| Clip | Label changes per 100 track-frames, previous → new | Black *other* markers on the map, previous → new |
+| Clip | Label changes per 100 track-frames, per-frame → track-level | Black *other* markers on the map, per-frame → track-level |
 |---|---|---|
-| 12 (60–100 s) | 2.33 → **1.36** | 4.7 % → 0 % |
-| 11 (90–130 s) | 3.02 → **2.05** | 4.4 % → 0 % |
-| 04 (120–160 s) | 1.64 → **0.67** | 1.0 % → 0 % |
+| 12 (60–100 s) | 2.07 → **1.00** | 2.2 % → 0 % |
+| 11 (90–130 s) | 2.54 → **0.83** | 5.4 % → 0 % |
+| 04 (120–160 s) | 1.41 → **0.44** | 1.3 % → 0 % |
 
-Label changes drop by 32–59 %. Remaining changes are largely attributable to identity switches of the tracker
-when players overlap, which no assignment rule can correct. Caveat: these clips were also used while developing
-this step (the hysteresis rule was added after a first measurement), so the numbers are not an independent
-held-out evaluation.
+Both rows use the same detections, tracks and the improved jersey-colour measurement (local grass model);
+only the assignment logic differs. Label changes drop by 52–69 %. With the goalkeeper rules, no frame shows two
+goalkeepers in the same half (previously 11 and 13 frames in clips 11 and 12). About 6 % of track-frames in
+clip 11 are hidden as *other* (colour outliers or goalkeeper duplicates), some of which may be players. Remaining
+label changes are largely attributable to identity switches of the tracker when players overlap.
+
+Caveats: these clips were also used while developing this step (the hysteresis, asymmetric role rule and
+goalkeeper rules were added after inspecting them; the role threshold itself was derived from validation-frame
+confusion rates), so the numbers are not an independent held-out evaluation. Problems found on the way: a fixed
+green-hue mask failed on yellowish grass and made both teams' colours collapse onto the grass colour; keeping
+team colours across shots was tried and reverted.
 
 ## 9. Video demo
 

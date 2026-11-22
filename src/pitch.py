@@ -251,8 +251,9 @@ TAKIM_RENK = {
 
 # Kuş bakışı haritada GÖSTERİLMEYEN sınıflar: hakem ve yan hakemler oyunun parçası değil,
 # haritada sadece kalabalık yapar. "diger": forma rengi iki takıma da uymayan, rolü belirsiz kişi
-# (çoğunlukla tanınamamış hakem). Görüntü tarafında kutuları yine çizilir (tespit kontrolü için).
-HARITADA_GIZLI = {"hakem", "diger"}
+# (çoğunlukla tanınamamış hakem) ya da orta sahada "kaleci" sanılan hakem.
+# Görüntü tarafında kutuları yine çizilir (tespit kontrolü için).
+HARITADA_GIZLI = {"hakem", "diger", "oyuncu"}   # "oyuncu": henüz takıma atanmamış (yeni iz) → gri nokta yerine gizli
 
 
 def oyunculari_ciz(img: np.ndarray, oyuncular: list[dict],

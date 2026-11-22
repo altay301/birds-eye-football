@@ -1,38 +1,38 @@
 {
   "12_gxsTs2qtV8A@60s/önceki": {
     "iz_kare": 6091,
-    "degisim_100": 2.3313084879330157,
-    "haritada_diger_orani": 0.04711869972089969,
+    "degisim_100": 2.068625841405352,
+    "haritada_diger_orani": 0.02232802495485142,
     "gizlenen_orani": 0.07207355114102774
   },
   "12_gxsTs2qtV8A@60s/yeni": {
     "iz_kare": 6091,
-    "degisim_100": 1.3626662288622557,
+    "degisim_100": 1.001477589886718,
     "haritada_diger_orani": 0.0,
-    "gizlenen_orani": 0.08504350681333114
+    "gizlenen_orani": 0.09308816286324084
   },
   "11_gsDyRUL4KX0@90s/önceki": {
     "iz_kare": 6389,
-    "degisim_100": 3.020817029269056,
-    "haritada_diger_orani": 0.0438253247769604,
+    "degisim_100": 2.5356080763812803,
+    "haritada_diger_orani": 0.05368602285177649,
     "gizlenen_orani": 0.08624197840037565
   },
   "11_gsDyRUL4KX0@90s/yeni": {
     "iz_kare": 6389,
-    "degisim_100": 2.0503991234935044,
+    "degisim_100": 0.8295507904210362,
     "haritada_diger_orani": 0.0,
-    "gizlenen_orani": 0.11926749100015652
+    "gizlenen_orani": 0.14086711535451557
   },
   "04_UDsByIrG9GE@120s/önceki": {
     "iz_kare": 3408,
-    "degisim_100": 1.6431924882629108,
-    "haritada_diger_orani": 0.009976525821596244,
+    "degisim_100": 1.408450704225352,
+    "haritada_diger_orani": 0.013497652582159625,
     "gizlenen_orani": 0.006455399061032864
   },
   "04_UDsByIrG9GE@120s/yeni": {
     "iz_kare": 3408,
-    "degisim_100": 0.6748826291079812,
+    "degisim_100": 0.44014084507042256,
     "haritada_diger_orani": 0.0,
-    "gizlenen_orani": 0.017605633802816902
+    "gizlenen_orani": 0.00528169014084507
   }
 }

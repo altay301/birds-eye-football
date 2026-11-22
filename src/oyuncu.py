@@ -103,7 +103,7 @@ def oyunculari_takip_et(goruntu: np.ndarray, model_adi: str = "yolov8n.pt", sifi
     for kutu, guven, sinif, tid in zip(b.xyxy.cpu().numpy(), b.conf.cpu().numpy(), b.cls.cpu().numpy(), kimlik):
         t = Tespit(tuple(map(float, kutu)), float(guven), ad[int(sinif)])
         t.ek["id"] = None if tid is None else int(tid)
-        if t.sinif == "oyuncu":
+        if t.sinif != "top":       # hakem ve kalecinin de rengi ölçülür (hakem–kaleci ayrımı için)
             r = forma_rengi(goruntu, t.kutu)
             if r is not None:
                 t.renk_bgr = tuple(int(c) for c in r)
@@ -121,11 +121,24 @@ def forma_rengi(goruntu: np.ndarray, kutu) -> np.ndarray | None:
     govde = goruntu[max(gy1, 0):max(gy2, 0), max(gx1, 0):max(gx2, 0)]
     if govde.size == 0:
         return None
-    hsv = cv2.cvtColor(govde, cv2.COLOR_BGR2HSV)
-    # OpenCV'de renk tonu (H) 0-180 arasıdır; yeşil ≈ 35-85. Doygunluk (S) düşükse
-    # renk grimsi/beyazdır — beyaz formaları kaybetmemek için onları silmiyoruz.
-    yesil = (hsv[..., 0] > 35) & (hsv[..., 0] < 85) & (hsv[..., 1] > 50)
-    pikseller = govde[~yesil]
+    # ÇİMİ YEREL ÖĞREN: sabit bir "yeşil" aralığı (ör. ton 35–85) sarımsı, solgun ya da gölgeli
+    # çimde başarısız olur (bir maçta çim tonu ≈ 32 → çim pikselleri forma rengine karışıyordu).
+    # Bunun yerine oyuncunun hemen çevresindeki zeminin medyan rengi çim kabul edilir ve gövdedeki
+    # bu renge (Lab uzayında) yakın pikseller atılır.
+    H, W = goruntu.shape[:2]
+    cx1, cx2 = max(0, x1 - w), min(W, x2 + w)
+    cy1, cy2 = max(0, y1 + h // 2), min(H, y2 + h // 3)
+    cevre = goruntu[cy1:cy2, cx1:cx2]
+    maske = np.ones(cevre.shape[:2], bool)
+    maske[max(0, y1 - cy1):max(0, y2 - cy1), max(0, x1 - cx1):max(0, x2 - cx1)] = False   # kutunun içi hariç
+    lab = cv2.cvtColor(govde, cv2.COLOR_BGR2LAB).reshape(-1, 3).astype(np.float32)
+    if maske.sum() >= 20:
+        cim = np.median(cv2.cvtColor(cevre, cv2.COLOR_BGR2LAB)[maske].astype(np.float32), axis=0)
+        forma = np.linalg.norm(lab - cim, axis=1) > 18
+    else:                                   # çevre yoksa (kenar) eski sabit yeşil maskesine dön
+        hsv = cv2.cvtColor(govde, cv2.COLOR_BGR2HSV).reshape(-1, 3)
+        forma = ~((hsv[:, 0] > 25) & (hsv[:, 0] < 85) & (hsv[:, 1] > 50))
+    pikseller = govde.reshape(-1, 3)[forma]
     if len(pikseller) < 10:
         return None
     return np.median(pikseller, axis=0)   # ortalama yerine medyan: aykırı piksellere dayanıklı
