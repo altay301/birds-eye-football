@@ -14,7 +14,7 @@ Bir yayın karesi seç (hazır listeden ya da kendi görüntünü yükle) → si
     3) YOLO → oyuncular, forma rengi → takımlar
     4) ayak noktaları × homografi → kuş bakışı mini harita
 
-Renk paleti: Visual Studio Code açık teması (TEMA + CSS aşağıda).
+Renk paleti: #E5DFC5 / #A61C5C / #446394 / #677041 (TEMA + CSS aşağıda).
 
 Kullanım:  .venv\\Scripts\\python.exe -X utf8 src\\arayuz.py
            → tarayıcıda http://127.0.0.1:7860
@@ -96,14 +96,14 @@ HAZIR = hazir_kareler()
 
 
 def noktalari_ciz(img: np.ndarray, noktalar: list[dict], kal) -> np.ndarray:
-    """Model noktaları: mavi = RANSAC kabul etti, gri = attı."""
+    """Model noktaları: ahududu = RANSAC kabul etti, gri = attı."""
     out = img.copy()
     s = out.shape[1] / 1280                       # büyük görüntüde yazılar okunur kalsın
     r, f, k = int(9 * s), 0.8 * s, max(1, int(2 * s))
     ic = kal.icerdeki if kal is not None and kal.icerdeki is not None else np.ones(len(noktalar), bool)
     for n, kabul in zip(noktalar, ic):
         p = tuple(np.round(n["px"]).astype(int))
-        renk = (184, 95, 0) if kabul else (150, 150, 150)         # BGR: VS Code mavisi / gri
+        renk = (92, 28, 166) if kabul else (150, 150, 150)        # BGR: #A61C5C / gri
         cv2.circle(out, p, r, renk, -1, cv2.LINE_AA)
         cv2.circle(out, p, r, (0, 0, 0), k, cv2.LINE_AA)
         yazi = f"{n['id']} ({n['guven']:.2f})"
@@ -222,16 +222,17 @@ def log(satirlar: list[tuple]) -> str:
     return '<pre class="log">' + "\n".join(out) + "</pre>"
 
 
-# --- Görünüm: Visual Studio Code açık teması (Light Modern + Light+ sözdizimi renkleri); yalnızca metin ---
+# --- Görünüm: kullanıcının paleti; yalnızca metin ---------------------------------------------------------
 # Görünüş terminal / kod düzenleyici gibi (eş aralıklı yazı; kutu, gölge, ikon, kaydırıcı, onay kutusu yok;
-# düğmeler ve dosya yükleme düz metin), metinler sade İngilizce. Renkler VS Code'daki rollerine göre:
-#   VURGU   #005fb8  vurgu rengi (seçili sekme, Run, odak)       DEGISKEN #001080  değişken → etiketler, anahtarlar
-#   SAYI    #098658  sayı → önemli sonuç                          YORUM    #008000  yorum → alt başlık
-#   HATA    #a31515  string/hata → uyarılar                       METIN    #3b3b3b  düz yazı
-# Zemin #b09cb5 (mor-gri): VS Code tonları bu zeminde okunmadığı için aynı rollerin koyu tonları
-# (metin kontrastı ≥ ~4:1).
-VURGU, DEGISKEN, SAYI, YORUM, HATA = "#003a75", "#001080", "#00422d", "#004000", "#6e0a0a"
-ZEMIN, METIN, SOLUK, CIZGI, SECIM = "#b09cb5", "#1f1f1f", "#4d4552", "#8c7891", "#9f8aa5"
+# düğmeler ve dosya yükleme düz metin), metinler sade İngilizce. Palet ve renklerin görevi:
+#   ZEMIN    #E5DFC5  krem arka plan
+#   VURGU    #A61C5C  ahududu → başlık, Run, seçili sekme, önemli sonuç, saha noktaları
+#   DEGISKEN #446394  mavi    → etiketler, sonuç anahtarları
+#   YORUM    #677041  zeytin  → alt başlık, ikincil düğmeler
+# (metin ve çizgi tonları zeminden türetildi; tüm yazı kontrastı ≥ ~4:1)
+VURGU, DEGISKEN, YORUM = "#A61C5C", "#446394", "#677041"
+SAYI, HATA = VURGU, VURGU
+ZEMIN, METIN, SOLUK, CIZGI, SECIM = "#E5DFC5", "#2b2b2b", "#6b6656", "#c9c2a4", "#d9d2b4"
 PEMBE = VURGU                              # eski ad: tema/CSS içinde vurgu rengi
 
 _t = dict(
@@ -250,7 +251,7 @@ _t = dict(
 )
 _set_ok = set(__import__("inspect").signature(gr.themes.Base.set).parameters)
 _MONO = [gr.themes.GoogleFont("JetBrains Mono"), "Cascadia Mono", "Consolas", "monospace"]
-TEMA = gr.themes.Base(primary_hue=gr.themes.colors.blue, neutral_hue=gr.themes.colors.neutral,
+TEMA = gr.themes.Base(primary_hue=gr.themes.colors.rose, neutral_hue=gr.themes.colors.neutral,
                       font=_MONO, font_mono=_MONO).set(
     **_t, **{f"{k}_dark": v for k, v in _t.items() if f"{k}_dark" in _set_ok})   # açık/koyu modda aynı
 
@@ -278,7 +279,7 @@ ul.options {{ background: {ZEMIN} !important; border: 1px solid {CIZGI} !importa
 ul.options li.selected, ul.options li:hover {{ background: {SECIM} !important; color: {VURGU} !important; }}
 button.lg, button.md, button.sm, button.primary, button.secondary {{
     background: transparent !important; border: none !important; box-shadow: none !important;
-    color: {METIN} !important; justify-content: flex-start !important; padding: 4px 0 !important;
+    color: {YORUM} !important; justify-content: flex-start !important; padding: 4px 0 !important;
     font-weight: 400 !important; min-width: 0 !important; width: auto !important; font-size: 14px !important; }}
 button.primary {{ color: {PEMBE} !important; }}
 button:focus, button:focus-visible {{ outline: none !important; box-shadow: none !important; }}
