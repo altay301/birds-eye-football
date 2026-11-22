@@ -140,8 +140,10 @@ out in HSV, median colour, K-means (k = 2) in Lab space; the map shows each team
 * **Player tracking** (`oyunculari_takip_et`, ByteTrack via Ultralytics). Detections are associated over time
   with a Kalman-filter motion model and two-stage matching (high- then low-confidence boxes), giving each
   player a persistent identity. The tracker is reset at scene cuts.
-* **Position smoothing** (`OyuncuTakipci`). Per identity, pitch positions are averaged exponentially
-  (β = 0.4; no smoothing for the ball). A single-frame jump > 4 m is ignored as an association or detection
+* **Position smoothing** (`OyuncuTakipci`). Per identity, pitch positions are averaged exponentially with a
+  speed-adaptive factor β_eff = β + (1 − β)·min(1, d / 1 m), β = 0.4, where d is the distance between the new
+  measurement and the current estimate (as in the One-Euro filter: strong smoothing for standing players,
+  little lag for running players; no smoothing for the ball). A single-frame jump > 4 m is ignored as an association or detection
   error; tracks unseen for up to 6 frames are held at their last position; the last ~1.5 s are drawn as a trail.
 * **Jersey colour** (`forma_rengi`): torso region of the box; grass pixels are removed by comparison with the
   *local* grass colour (median Lab colour of the ground around the player, distance > 18) instead of a fixed

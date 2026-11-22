@@ -326,8 +326,17 @@ class TakimAtayici:
 
 
 class OyuncuTakipci:
-    def __init__(self, beta: float = 0.4, kapi_m: float = 4.0, bekle: int = 6, iz: int = 18):
-        self.beta, self.kapi_m, self.bekle, self.iz_uzunluk = beta, kapi_m, bekle, iz
+    """
+    HIZA DUYARLI YUMUŞATMA ("One-Euro" filtresi fikri): sabit katsayılı EMA ya titrer (β büyük) ya geç
+    kalır (β küçük). Çözüm: katsayıyı harekete göre ayarlamak. Yeni ölçüm mevcut konumdan d metre
+    uzaksa  β_etkin = β + (1 − β) · min(1, d / hiz_m).  Duran/yavaş oyuncu (d ≈ gürültü, ~0.2 m) → güçlü
+    yumuşatma; koşan oyuncu (12 fps'de ~0.7 m/kare) → zayıf yumuşatma, az gecikme.
+    hiz_m = None → sabit β (önceki davranış).
+    """
+
+    def __init__(self, beta: float = 0.4, kapi_m: float = 4.0, bekle: int = 6, iz: int = 18,
+                 hiz_m: float | None = 1.0):
+        self.beta, self.kapi_m, self.bekle, self.iz_uzunluk, self.hiz_m = beta, kapi_m, bekle, iz, hiz_m
         self.sifirla()
 
     def sifirla(self):
@@ -357,6 +366,8 @@ class OyuncuTakipci:
                 continue
             # Sıçrama ısrar ettiyse gerçektir (ör. kimlik düzeldi): ortalamayla yavaşça kaydırma, doğrudan atla.
             a = 1.0 if (t.sinif == "top" or sicradi) else self.beta   # top hızlı: yumuşatma yok
+            if a < 1.0 and self.hiz_m:
+                a = self.beta + (1 - self.beta) * min(1.0, float(np.linalg.norm(p - iz["p"])) / self.hiz_m)
             if sicradi:
                 iz["gecmis"].clear()
             iz["p"] = a * p + (1 - a) * iz["p"]

@@ -240,17 +240,19 @@ test matches (`src/video_titreme.py`, `results/video_titreme.json`):
 |---|---|---|---|---|---|
 | 12 (60–120 s) | raw | 47 % | 0.213 / 0.761 | 0.222 / 0.719 | — |
 | | previous | 48 % | 0.068 / 0.198 | 0.134 / 0.437 | 0.60 |
-| | **new** | 48 % | 0.099 / 0.309 | **0.042 / 0.193** | **0.49** |
+| | **new** | 47 % | 0.099 / 0.306 | **0.067 / 0.447** | **0.32** |
 | 11 (90–150 s) | raw | 79 % | 0.181 / 1.057 | 0.299 / 1.282 | — |
 | | previous | 82 % | 0.050 / 0.283 | 0.148 / 0.517 | 0.51 |
-| | **new** | 82 % | 0.075 / 0.463 | **0.046 / 0.237** | **0.40** |
+| | **new** | 81 % | 0.075 / 0.453 | **0.074 / 0.526** | **0.29** |
 | 04 (120–180 s) | raw | 47 % | 0.209 / 1.285 | 0.321 / 3.187 | — |
 | | previous | 47 % | 0.047 / 0.326 | 0.135 / 0.867 | 0.27 |
-| | **new** | 47 % | 0.078 / 0.508 | **0.046 / 0.413** | 0.30 |
+| | **new** | 46 % | 0.079 / 0.507 | **0.063 / 1.077** | **0.20** |
 
-* **Player jitter** is reduced by a factor of ≈ 3 relative to the previous method and 5–7 relative to raw
-  output, while the smoothed positions stay as close to (clips 12, 11) or nearly as close to (clip 04) the raw
-  positions as before; the improvement is not obtained by freezing players.
+* **Player jitter** (median) is reduced by a factor of ≈ 2 relative to the previous method and 3–5 relative to
+  raw output, while the smoothed positions stay *closer* to the raw positions than before (0.20–0.32 m vs.
+  0.27–0.60 m); the improvement is not obtained by freezing players. (With constant smoothing the jitter was
+  ≈ 3× lower but the lag larger and the median position error 0.57 m instead of 0.43 m, §8.2.) The 90th
+  percentile of the new method is higher on clip 04 (1.08 m), where fast camera changes occur.
 * **Homography jitter** of the new filter is somewhat higher than that of the previous matrix EMA at the
   selected α (less smoothing, less lag). However, the matrix EMA is not robust: on validation clip 10 its
   90th-percentile homography jitter reached 4.06 m — worse than raw output (2.79 m) — whereas the new filter
@@ -304,7 +306,8 @@ manual ground truth (`src/oyuncu_harita_olc.py`, `results/oyuncu_harita.json`):
 |---|---|---|---|---|---|---|
 | A: COCO detector, per-frame assignment (previous system) | 75.1 % | 83.0 % | 98.5 % | 70.6 % | 13.9 % | 0.52 m |
 | C: own detector, per-frame assignment | 75.3 % | 83.2 % | 94.8 % | 38.2 % | **11.1 %** | 0.54 m |
-| **B: own detector + track-level rules (current)** | 74.7 % | 82.5 % | **98.8 %** | **26.5 %** | 11.5 % | 0.57 m |
+| B′: own detector + track-level rules, constant smoothing | 74.7 % | 82.5 % | **98.8 %** | 26.5 % | 11.5 % | 0.57 m |
+| **B: as B′ + speed-adaptive smoothing (current)** | 74.4 % | 82.3 % | **98.8 %** | **23.5 %** | 12.1 % | **0.43 m** |
 
 (27 frames, 430 players, 34 referees. 25 of the frames were never looked at while developing the video rules;
 on those the numbers differ by less than 2 points. *Two annotated frames are the very first frame of a shot
@@ -312,8 +315,14 @@ on those the numbers differ by less than 2 points. *Two annotated frames are the
 frames to start, so the map appears one sampled frame (~0.08 s) later; the second column excludes these frames.
 The cropped output video drops such frames anyway.)
 
-* **Players:** about 83 % of the players are on the map when the shot has started, within 3 m and with a
-  median error of about 0.55 m (90th percentile 1.35 m). The detector and the rules hardly change this. The
+* **Speed-adaptive smoothing** (One-Euro-style: the smoothing factor grows with the distance between the new
+  measurement and the current estimate; threshold 1 m per sampled frame chosen in advance, not tuned) reduces
+  the median position error from 0.57 m to 0.43 m (frames never used during development: 0.58 → 0.42 m),
+  players more than 1 m off from 21 % to 12 % and the 90th percentile from 1.35 m to 1.06 m. Its cost is
+  slightly more jitter (median 0.06–0.07 m instead of 0.04–0.05 m, still half that of the previous matrix EMA)
+  in exchange for less lag (distance to raw 0.20–0.32 m instead of 0.30–0.49 m).
+* **Players:** about 82 % of the players are on the map when the shot has started, within 3 m and with a
+  median error of about 0.43 m (90th percentile 1.06 m). The detector and the rules hardly change this. The
   largest single loss is a very wide pre-match frame whose homography is 8.7 m wrong; it is now rejected
   (no map) instead of showing 22 players in wrong places.
 * **Referees:** the own detector and the track-level rules reduce visible referees from 71 % to 27 %.
@@ -335,6 +344,18 @@ empty or wrong video map:
    jump is accepted.
 The stability measurements of §8 and §8.1 were re-run after the fixes; changes are within a few hundredths of a
 metre or label change per 100 track-frames.
+
+### 8.3 Negative result: refining the homography on the pitch lines
+
+The homography was refined by fitting the projected pitch template to the white line pixels of the image
+(top-hat filter on Lab lightness inside the grass region, distance transform, 8-parameter robust least
+squares with the model's RANSAC inliers as a weak anchor; `src/cizgi_iyilestir.py`). On the validation
+frames the fit to the lines improved markedly (e.g. 2.7 → 0.4 px mean distance) but the error at the manually
+annotated keypoints got **worse**: median 0.200 → 0.230 m, 36 frames worse and 8 better
+(`results/cizgi_iyilestirme_val.json`). Only the three weakest frames (> 0.5 m) improved (mean 1.09 → 0.84 m).
+Likely reasons: the model is already at the level of the annotation noise (0.20 m vs. 0.32 m click noise in the
+synthetic test), and broadcast lenses bend the lines, which a homography cannot represent, so fitting all lines
+spreads the error. The method was **not** adopted and the test set was not used for it.
 
 ## 9. Video demo
 

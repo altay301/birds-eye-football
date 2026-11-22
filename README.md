@@ -52,8 +52,9 @@ frame ─┬─► landmark heatmaps (ResNet-18 + U-Net) ─► RANSAC homograph
   (collinear) inlier sets.
 * **Video.** Frame sampling at 12 fps, scene-cut detection by HSV-histogram Bhattacharyya distance, a
   homography filter with jump rejection and point-space smoothing, ByteTrack player tracking with per-track
-  position smoothing, and persistent team colour assignment. Player jitter is reduced about threefold
-  relative to per-frame matrix smoothing ([results §8](docs/results.md#8-temporal-stability-in-video)).
+  speed-adaptive position smoothing, and track-level role and team assignment. On 27 annotated frames the
+  video pipeline places about 82 % of the players on the map with a median error of 0.43 m
+  ([results §8](docs/results.md#8-temporal-stability-in-video)).
 
 Full description: [docs/method.md](docs/method.md).
 

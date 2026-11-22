@@ -196,11 +196,11 @@ class VideoHatti:
     """
 
     def __init__(self, model, yolo: str = "yolov8n.pt", yumusat: bool = True, top_goster: bool = False,
-                 kararli_takim: bool = True):
+                 kararli_takim: bool = True, hiz_m: float | None = 1.0):
         # top_goster=False: top haritada gösterilmez. Hazır model topu karelerin ~%59'unda bulur, yanlış
         # tespitler olur ve havadaki top homografi yüzünden metrelerce kayar → haritada titrek görünür.
         self.model, self.yolo, self.yumusat, self.top_goster = model, yolo, yumusat, top_goster
-        self.filtre, self.takipci = HomografiFiltresi(), OyuncuTakipci()
+        self.filtre, self.takipci = HomografiFiltresi(), OyuncuTakipci(hiz_m=hiz_m)
         self.takim = TakimAtayici(kararli=kararli_takim)
         self.ilk = True
 

@@ -28,10 +28,10 @@
       "kapsama": 0.4736111111111111,
       "H_titreme_medyan": 0.09853322923389965,
       "H_titreme_p90": 0.3058267871738164,
-      "oyuncu_titreme_medyan": 0.042124038400596475,
-      "oyuncu_titreme_p90": 0.19070416126563844,
+      "oyuncu_titreme_medyan": 0.06733477871018446,
+      "oyuncu_titreme_p90": 0.44676415826376636,
       "oyuncu_uclu": 6095,
-      "ham_konuma_uzaklik_medyan": 0.48667795000984637
+      "ham_konuma_uzaklik_medyan": 0.32443311738211533
     }
   },
   "11_gsDyRUL4KX0@90s": {
@@ -59,10 +59,10 @@
       "kapsama": 0.812,
       "H_titreme_medyan": 0.07487355432285554,
       "H_titreme_p90": 0.45286636709870554,
-      "oyuncu_titreme_medyan": 0.04680122233854582,
-      "oyuncu_titreme_p90": 0.2209948952279153,
+      "oyuncu_titreme_medyan": 0.07400564214065442,
+      "oyuncu_titreme_p90": 0.5262946238448798,
       "oyuncu_uclu": 16104,
-      "ham_konuma_uzaklik_medyan": 0.40116798538094345
+      "ham_konuma_uzaklik_medyan": 0.2947129148334475
     }
   },
   "04_UDsByIrG9GE@120s": {
@@ -90,10 +90,10 @@
       "kapsama": 0.464,
       "H_titreme_medyan": 0.07905902926791085,
       "H_titreme_p90": 0.5068276971836092,
-      "oyuncu_titreme_medyan": 0.04481798031950399,
-      "oyuncu_titreme_p90": 0.3981859378917454,
+      "oyuncu_titreme_medyan": 0.06278505423585312,
+      "oyuncu_titreme_p90": 1.0774851930206695,
       "oyuncu_uclu": 11591,
-      "ham_konuma_uzaklik_medyan": 0.29768815505188606
+      "ham_konuma_uzaklik_medyan": 0.20441950059648997
     }
   }
 }

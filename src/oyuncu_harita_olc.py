@@ -24,7 +24,8 @@ Yöntem
 Yapılandırmalar (aynı kareler):
   A  önceki sistem : hazır COCO YOLOv8m, kare bazında takım ataması
   C  kendi model   : tespit_futbol_v3_1536, kare bazında takım ataması (rol yok)
-  B  şimdiki sistem: tespit_futbol_v3_1536 + iz bazında rol/takım kuralları
+  B  şimdiki sistem: tespit_futbol_v3_1536 + iz bazında rol/takım kuralları + hıza duyarlı yumuşatma
+     (B_sabit_yumusatma: aynısı, sabit katsayılı yumuşatmayla — hıza duyarlılığın etkisini ayırmak için)
 
 Kullanım:  .venv\\Scripts\\python.exe -X utf8 src\\oyuncu_harita_olc.py
 Çıktı   :  results\\oyuncu_harita.json
@@ -49,8 +50,9 @@ NOKTA = PROJE / "data" / "labels" / "noktalar"
 VIDEO = PROJE / "data" / "raw_videos"
 ISINMA_SN, KAPI_M, HEDEF_FPS = 4.0, 3.0, 12
 GELISTIRMEDE_GORULEN = {"12_gxsTs2qtV8A_t00090.0", "11_gsDyRUL4KX0_t00106.0"}   # video kuralı kliplerine düşen kareler
-YAPILANDIRMA = {"A_onceki": ("yolov8m.pt", False), "C_kendi_model": ("tespit_futbol_v3_1536.pt", False),
-                "B_simdiki": ("tespit_futbol_v3_1536.pt", True)}
+YAPILANDIRMA = {"A_onceki": ("yolov8m.pt", False, None), "C_kendi_model": ("tespit_futbol_v3_1536.pt", False, None),
+                "B_sabit_yumusatma": ("tespit_futbol_v3_1536.pt", True, None),
+                "B_simdiki": ("tespit_futbol_v3_1536.pt", True, 1.0)}   # (tespit modeli, iz kuralları, hız eşiği m)
 
 
 def kareler():
@@ -77,7 +79,7 @@ def kareler():
     return out
 
 
-def hatti_calistir(model, k, yolo, kararli):
+def hatti_calistir(model, k, yolo, kararli, hiz_m=1.0):
     """Videoyu etiketli kareden ~4 sn önce başlatıp tam o kareye kadar işler; son karenin çıktısını döner."""
     cap = cv2.VideoCapture(str(VIDEO / f"{k['video']}.mp4"))
     fps = cap.get(cv2.CAP_PROP_FPS) or 25
@@ -87,7 +89,7 @@ def hatti_calistir(model, k, yolo, kararli):
     K = round(ISINMA_SN * fps / adim)
     bas_kare = max(0, hedef - adim * K)
     K = (hedef - bas_kare) // adim
-    hat = VideoHatti(model, yolo, yumusat=True, kararli_takim=kararli)
+    hat = VideoHatti(model, yolo, yumusat=True, kararli_takim=kararli, hiz_m=hiz_m)
     son = None
     for img, kesme, _ in video_kareleri(VIDEO / f"{k['video']}.mp4", (bas_kare + 0.01) / fps,
                                         (adim * K + 1.5) / fps, HEDEF_FPS):
@@ -110,9 +112,9 @@ def main():
     model = model_yukle(str(PROJE / "models" / "unet_kp_gercek_v1.pt"))
     kk = kareler()
     sonuc = {"kareler": [], "ozet": {}}
-    for ad_y, (yolo, kararli) in YAPILANDIRMA.items():
+    for ad_y, (yolo, kararli, hiz_m) in YAPILANDIRMA.items():
         for k in kk:
-            kal, oyuncular, fark = hatti_calistir(model, k, yolo, kararli)
+            kal, oyuncular, fark = hatti_calistir(model, k, yolo, kararli, hiz_m)
             gosterilen = [o for o in oyuncular if o["sinif"] not in ("hakem", "top")]
             p = np.array([[o["x"], o["y"]] for o in gosterilen]).reshape(-1, 2)
             gercek = np.vstack([k["oyuncu"], k["hakem"]]) if len(k["hakem"]) else k["oyuncu"]
