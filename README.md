@@ -110,6 +110,8 @@ a reference, not as a point of either curve.
   (95 % CI [−1.0, +2.9]); without it, +13.1 points ([+8.4, +18.0]).
 * The synthetic-only model and the model trained on all 143 real frames without synthetic data do not
   differ significantly (+0.3, [−4.8, +5.4]).
+* Repeating every run with three training seeds confirms these findings and shows that synthetic
+  pre-training also stabilises training: seed-to-seed spread 0.2–0.6 points with it, up to 5.6 points without.
 
 ### 4.3 Player and referee detection
 
@@ -138,7 +140,8 @@ Complete tables, detection statistics and a per-frame error analysis: [docs/resu
   by default because of its jitter (and because a ball in the air is projected incorrectly).
 * Temporal smoothing in video is evaluated for smoothness only (no ground-truth trajectories are available).
 * All points, including the ball, are assumed to lie on the ground plane.
-* The test set is small (41 frames, 2 matches); confidence intervals are reported throughout.
+* The test set is small (41 frames, 2 matches); confidence intervals are reported throughout. Training
+  randomness was measured with three seeds for the learning curve; other experiments use a single seed.
 
 ## 6. Reproduction
 

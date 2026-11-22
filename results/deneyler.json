@@ -490,5 +490,661 @@
       "metre_hata_medyan": 0.9718550740243426,
       "basari_1m_oran": 0.2631578947368421
     }
+  },
+  "unet_kp_v2_t1": {
+    "val": {
+      "kare": 75,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.9432835820895522,
+      "medyan_hata_px": 0.5734883511361998,
+      "PCK@5px": 0.8746268656716418,
+      "PCK@10px": 0.9104477611940298,
+      "PCK@20px": 0.9238805970149254,
+      "homografi_kare": 60,
+      "homografi_kurulan_oran": 0.9666666666666667,
+      "metre_hata_medyan": 0.2020763017407166,
+      "basari_1m_oran": 0.95
+    },
+    "test_04": {
+      "kare": 25,
+      "etiketli_nokta": 174,
+      "bulunan_oran": 0.9540229885057471,
+      "medyan_hata_px": 1.6204185896677668,
+      "PCK@5px": 0.8045977011494253,
+      "PCK@10px": 0.8793103448275862,
+      "PCK@20px": 0.9367816091954023,
+      "homografi_kare": 17,
+      "homografi_kurulan_oran": 1.0,
+      "metre_hata_medyan": 0.2616609103249079,
+      "basari_1m_oran": 0.9411764705882353
+    },
+    "test_onerisiz": {
+      "kare": 50,
+      "etiketli_nokta": 397,
+      "bulunan_oran": 0.8790931989924433,
+      "medyan_hata_px": 2.6874192494328684,
+      "PCK@5px": 0.6750629722921915,
+      "PCK@10px": 0.7984886649874056,
+      "PCK@20px": 0.8488664987405542,
+      "homografi_kare": 38,
+      "homografi_kurulan_oran": 0.8947368421052632,
+      "metre_hata_medyan": 0.22300868037664015,
+      "basari_1m_oran": 0.868421052631579
+    }
+  },
+  "unet_kp_v2_t2": {
+    "val": {
+      "kare": 75,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.9417910447761194,
+      "medyan_hata_px": 1.1392004993756637,
+      "PCK@5px": 0.8462686567164179,
+      "PCK@10px": 0.908955223880597,
+      "PCK@20px": 0.926865671641791,
+      "homografi_kare": 60,
+      "homografi_kurulan_oran": 0.9666666666666667,
+      "metre_hata_medyan": 0.2174324430560136,
+      "basari_1m_oran": 0.9333333333333333
+    },
+    "test_04": {
+      "kare": 25,
+      "etiketli_nokta": 174,
+      "bulunan_oran": 0.9655172413793104,
+      "medyan_hata_px": 1.631535687584249,
+      "PCK@5px": 0.8218390804597702,
+      "PCK@10px": 0.9195402298850575,
+      "PCK@20px": 0.9540229885057471,
+      "homografi_kare": 17,
+      "homografi_kurulan_oran": 1.0,
+      "metre_hata_medyan": 0.26410099721903596,
+      "basari_1m_oran": 1.0
+    },
+    "test_onerisiz": {
+      "kare": 50,
+      "etiketli_nokta": 397,
+      "bulunan_oran": 0.8740554156171285,
+      "medyan_hata_px": 2.5298221281347093,
+      "PCK@5px": 0.7052896725440806,
+      "PCK@10px": 0.8110831234256927,
+      "PCK@20px": 0.8488664987405542,
+      "homografi_kare": 38,
+      "homografi_kurulan_oran": 0.8947368421052632,
+      "metre_hata_medyan": 0.20647757063525157,
+      "basari_1m_oran": 0.868421052631579
+    }
+  },
+  "unet_kp_egri_A3_t1": {
+    "val": {
+      "kare": 75,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.9388059701492537,
+      "medyan_hata_px": 0.7453559924999299,
+      "PCK@5px": 0.8761194029850746,
+      "PCK@10px": 0.9074626865671642,
+      "PCK@20px": 0.9194029850746268,
+      "homografi_kare": 60,
+      "homografi_kurulan_oran": 0.9666666666666667,
+      "metre_hata_medyan": 0.21681266363953977,
+      "basari_1m_oran": 0.95
+    },
+    "test_04": {
+      "kare": 25,
+      "etiketli_nokta": 174,
+      "bulunan_oran": 0.9195402298850575,
+      "medyan_hata_px": 1.497570747635699,
+      "PCK@5px": 0.7873563218390804,
+      "PCK@10px": 0.8563218390804598,
+      "PCK@20px": 0.896551724137931,
+      "homografi_kare": 17,
+      "homografi_kurulan_oran": 1.0,
+      "metre_hata_medyan": 0.3202757890104031,
+      "basari_1m_oran": 1.0
+    },
+    "test_onerisiz": {
+      "kare": 50,
+      "etiketli_nokta": 397,
+      "bulunan_oran": 0.8664987405541562,
+      "medyan_hata_px": 2.5789356266965164,
+      "PCK@5px": 0.6851385390428212,
+      "PCK@10px": 0.7909319899244333,
+      "PCK@20px": 0.8337531486146096,
+      "homografi_kare": 38,
+      "homografi_kurulan_oran": 0.9210526315789473,
+      "metre_hata_medyan": 0.21330507869807522,
+      "basari_1m_oran": 0.8421052631578947
+    }
+  },
+  "unet_kp_egri_A3_t2": {
+    "val": {
+      "kare": 75,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.9343283582089552,
+      "medyan_hata_px": 0.6217841863116698,
+      "PCK@5px": 0.8761194029850746,
+      "PCK@10px": 0.9074626865671642,
+      "PCK@20px": 0.917910447761194,
+      "homografi_kare": 60,
+      "homografi_kurulan_oran": 0.9666666666666667,
+      "metre_hata_medyan": 0.2154007553156009,
+      "basari_1m_oran": 0.9333333333333333
+    },
+    "test_04": {
+      "kare": 25,
+      "etiketli_nokta": 174,
+      "bulunan_oran": 0.9252873563218391,
+      "medyan_hata_px": 1.2944325225964532,
+      "PCK@5px": 0.7988505747126436,
+      "PCK@10px": 0.8620689655172413,
+      "PCK@20px": 0.9080459770114943,
+      "homografi_kare": 17,
+      "homografi_kurulan_oran": 1.0,
+      "metre_hata_medyan": 0.29715328484356,
+      "basari_1m_oran": 1.0
+    },
+    "test_onerisiz": {
+      "kare": 50,
+      "etiketli_nokta": 397,
+      "bulunan_oran": 0.8614609571788413,
+      "medyan_hata_px": 2.7353648270788877,
+      "PCK@5px": 0.6750629722921915,
+      "PCK@10px": 0.7934508816120907,
+      "PCK@20px": 0.8287153652392947,
+      "homografi_kare": 38,
+      "homografi_kurulan_oran": 0.8947368421052632,
+      "metre_hata_medyan": 0.23120834836425452,
+      "basari_1m_oran": 0.8421052631578947
+    }
+  },
+  "unet_kp_egri_A5_t1": {
+    "val": {
+      "kare": 75,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.9388059701492537,
+      "medyan_hata_px": 0.7211102550927936,
+      "PCK@5px": 0.8731343283582089,
+      "PCK@10px": 0.9044776119402985,
+      "PCK@20px": 0.9208955223880597,
+      "homografi_kare": 60,
+      "homografi_kurulan_oran": 0.9666666666666667,
+      "metre_hata_medyan": 0.21032107153581275,
+      "basari_1m_oran": 0.95
+    },
+    "test_04": {
+      "kare": 25,
+      "etiketli_nokta": 174,
+      "bulunan_oran": 0.9367816091954023,
+      "medyan_hata_px": 1.3333333333332575,
+      "PCK@5px": 0.7873563218390804,
+      "PCK@10px": 0.8735632183908046,
+      "PCK@20px": 0.9195402298850575,
+      "homografi_kare": 17,
+      "homografi_kurulan_oran": 1.0,
+      "metre_hata_medyan": 0.32688625364692875,
+      "basari_1m_oran": 0.9411764705882353
+    },
+    "test_onerisiz": {
+      "kare": 50,
+      "etiketli_nokta": 397,
+      "bulunan_oran": 0.871536523929471,
+      "medyan_hata_px": 2.714029944122727,
+      "PCK@5px": 0.6574307304785895,
+      "PCK@10px": 0.7858942065491183,
+      "PCK@20px": 0.836272040302267,
+      "homografi_kare": 38,
+      "homografi_kurulan_oran": 0.8947368421052632,
+      "metre_hata_medyan": 0.21961719895337165,
+      "basari_1m_oran": 0.868421052631579
+    }
+  },
+  "unet_kp_egri_A5_t2": {
+    "val": {
+      "kare": 75,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.9402985074626866,
+      "medyan_hata_px": 0.7086763875156155,
+      "PCK@5px": 0.8671641791044776,
+      "PCK@10px": 0.9074626865671642,
+      "PCK@20px": 0.9208955223880597,
+      "homografi_kare": 60,
+      "homografi_kurulan_oran": 0.9666666666666667,
+      "metre_hata_medyan": 0.2134679769343515,
+      "basari_1m_oran": 0.95
+    },
+    "test_04": {
+      "kare": 25,
+      "etiketli_nokta": 174,
+      "bulunan_oran": 0.9310344827586207,
+      "medyan_hata_px": 1.3903517079272436,
+      "PCK@5px": 0.8103448275862069,
+      "PCK@10px": 0.8620689655172413,
+      "PCK@20px": 0.9137931034482759,
+      "homografi_kare": 17,
+      "homografi_kurulan_oran": 1.0,
+      "metre_hata_medyan": 0.33371036571592083,
+      "basari_1m_oran": 0.9411764705882353
+    },
+    "test_onerisiz": {
+      "kare": 50,
+      "etiketli_nokta": 397,
+      "bulunan_oran": 0.8589420654911839,
+      "medyan_hata_px": 2.510422717835029,
+      "PCK@5px": 0.6826196473551638,
+      "PCK@10px": 0.7884130982367759,
+      "PCK@20px": 0.8261964735516373,
+      "homografi_kare": 38,
+      "homografi_kurulan_oran": 0.8947368421052632,
+      "metre_hata_medyan": 0.22338840703203156,
+      "basari_1m_oran": 0.8421052631578947
+    }
+  },
+  "unet_kp_egri_A8_t1": {
+    "val": {
+      "kare": 75,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.9432835820895522,
+      "medyan_hata_px": 0.6699917080747274,
+      "PCK@5px": 0.8626865671641791,
+      "PCK@10px": 0.9044776119402985,
+      "PCK@20px": 0.9223880597014925,
+      "homografi_kare": 60,
+      "homografi_kurulan_oran": 0.9666666666666667,
+      "metre_hata_medyan": 0.214678798001341,
+      "basari_1m_oran": 0.95
+    },
+    "test_04": {
+      "kare": 25,
+      "etiketli_nokta": 174,
+      "bulunan_oran": 0.9597701149425287,
+      "medyan_hata_px": 1.5114378731673073,
+      "PCK@5px": 0.7988505747126436,
+      "PCK@10px": 0.8850574712643678,
+      "PCK@20px": 0.9310344827586207,
+      "homografi_kare": 17,
+      "homografi_kurulan_oran": 1.0,
+      "metre_hata_medyan": 0.3148080170050225,
+      "basari_1m_oran": 1.0
+    },
+    "test_onerisiz": {
+      "kare": 50,
+      "etiketli_nokta": 397,
+      "bulunan_oran": 0.8790931989924433,
+      "medyan_hata_px": 2.6465910988372374,
+      "PCK@5px": 0.672544080604534,
+      "PCK@10px": 0.7858942065491183,
+      "PCK@20px": 0.8337531486146096,
+      "homografi_kare": 38,
+      "homografi_kurulan_oran": 0.8947368421052632,
+      "metre_hata_medyan": 0.22763882923865303,
+      "basari_1m_oran": 0.8421052631578947
+    }
+  },
+  "unet_kp_egri_A8_t2": {
+    "val": {
+      "kare": 75,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.9417910447761194,
+      "medyan_hata_px": 0.6666666666666288,
+      "PCK@5px": 0.8731343283582089,
+      "PCK@10px": 0.908955223880597,
+      "PCK@20px": 0.9223880597014925,
+      "homografi_kare": 60,
+      "homografi_kurulan_oran": 0.9666666666666667,
+      "metre_hata_medyan": 0.21577630037935175,
+      "basari_1m_oran": 0.95
+    },
+    "test_04": {
+      "kare": 25,
+      "etiketli_nokta": 174,
+      "bulunan_oran": 0.9482758620689655,
+      "medyan_hata_px": 1.5216949614018207,
+      "PCK@5px": 0.7873563218390804,
+      "PCK@10px": 0.8793103448275862,
+      "PCK@20px": 0.9310344827586207,
+      "homografi_kare": 17,
+      "homografi_kurulan_oran": 1.0,
+      "metre_hata_medyan": 0.3208842335387198,
+      "basari_1m_oran": 1.0
+    },
+    "test_onerisiz": {
+      "kare": 50,
+      "etiketli_nokta": 397,
+      "bulunan_oran": 0.8790931989924433,
+      "medyan_hata_px": 2.687419249432814,
+      "PCK@5px": 0.6826196473551638,
+      "PCK@10px": 0.7934508816120907,
+      "PCK@20px": 0.8387909319899244,
+      "homografi_kare": 38,
+      "homografi_kurulan_oran": 0.8947368421052632,
+      "metre_hata_medyan": 0.21676831445271383,
+      "basari_1m_oran": 0.868421052631579
+    }
+  },
+  "unet_kp_egri_B3_t1": {
+    "val": {
+      "kare": 75,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.6746268656716418,
+      "medyan_hata_px": 2.352300800058729,
+      "PCK@5px": 0.5402985074626866,
+      "PCK@10px": 0.6417910447761194,
+      "PCK@20px": 0.6567164179104478,
+      "homografi_kare": 60,
+      "homografi_kurulan_oran": 0.85,
+      "metre_hata_medyan": 0.32467217287827244,
+      "basari_1m_oran": 0.8
+    },
+    "test_04": {
+      "kare": 25,
+      "etiketli_nokta": 174,
+      "bulunan_oran": 0.47126436781609193,
+      "medyan_hata_px": 2.5288403558811856,
+      "PCK@5px": 0.3505747126436782,
+      "PCK@10px": 0.43103448275862066,
+      "PCK@20px": 0.47126436781609193,
+      "homografi_kare": 17,
+      "homografi_kurulan_oran": 0.5294117647058824,
+      "metre_hata_medyan": 0.4431766447728116,
+      "basari_1m_oran": 0.47058823529411764
+    },
+    "test_onerisiz": {
+      "kare": 50,
+      "etiketli_nokta": 397,
+      "bulunan_oran": 0.6171284634760705,
+      "medyan_hata_px": 2.7728845790780388,
+      "PCK@5px": 0.5037783375314862,
+      "PCK@10px": 0.5818639798488665,
+      "PCK@20px": 0.6045340050377834,
+      "homografi_kare": 38,
+      "homografi_kurulan_oran": 0.7631578947368421,
+      "metre_hata_medyan": 0.23337975789527368,
+      "basari_1m_oran": 0.7631578947368421
+    }
+  },
+  "unet_kp_egri_B3_t2": {
+    "val": {
+      "kare": 75,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.6208955223880597,
+      "medyan_hata_px": 2.36078782537551,
+      "PCK@5px": 0.49701492537313435,
+      "PCK@10px": 0.5791044776119403,
+      "PCK@20px": 0.6029850746268657,
+      "homografi_kare": 60,
+      "homografi_kurulan_oran": 0.7833333333333333,
+      "metre_hata_medyan": 0.33573050144028554,
+      "basari_1m_oran": 0.7
+    },
+    "test_04": {
+      "kare": 25,
+      "etiketli_nokta": 174,
+      "bulunan_oran": 0.40804597701149425,
+      "medyan_hata_px": 3.2055507413790254,
+      "PCK@5px": 0.2988505747126437,
+      "PCK@10px": 0.3505747126436782,
+      "PCK@20px": 0.39080459770114945,
+      "homografi_kare": 17,
+      "homografi_kurulan_oran": 0.35294117647058826,
+      "metre_hata_medyan": 0.5368458811948382,
+      "basari_1m_oran": 0.29411764705882354
+    },
+    "test_onerisiz": {
+      "kare": 50,
+      "etiketli_nokta": 397,
+      "bulunan_oran": 0.5465994962216625,
+      "medyan_hata_px": 3.4208510961779783,
+      "PCK@5px": 0.3979848866498741,
+      "PCK@10px": 0.491183879093199,
+      "PCK@20px": 0.5214105793450882,
+      "homografi_kare": 38,
+      "homografi_kurulan_oran": 0.5789473684210527,
+      "metre_hata_medyan": 0.28494184536324185,
+      "basari_1m_oran": 0.5526315789473685
+    }
+  },
+  "unet_kp_egri_B5_t1": {
+    "val": {
+      "kare": 75,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.8328358208955224,
+      "medyan_hata_px": 2.3342855200015453,
+      "PCK@5px": 0.6537313432835821,
+      "PCK@10px": 0.7701492537313432,
+      "PCK@20px": 0.8014925373134328,
+      "homografi_kare": 60,
+      "homografi_kurulan_oran": 0.9333333333333333,
+      "metre_hata_medyan": 0.3129241570991906,
+      "basari_1m_oran": 0.9333333333333333
+    },
+    "test_04": {
+      "kare": 25,
+      "etiketli_nokta": 174,
+      "bulunan_oran": 0.6839080459770115,
+      "medyan_hata_px": 2.8134597128012406,
+      "PCK@5px": 0.5287356321839081,
+      "PCK@10px": 0.6264367816091954,
+      "PCK@20px": 0.6666666666666666,
+      "homografi_kare": 17,
+      "homografi_kurulan_oran": 0.8235294117647058,
+      "metre_hata_medyan": 0.33835992746350063,
+      "basari_1m_oran": 0.7647058823529411
+    },
+    "test_onerisiz": {
+      "kare": 50,
+      "etiketli_nokta": 397,
+      "bulunan_oran": 0.7506297229219143,
+      "medyan_hata_px": 2.9325732121355883,
+      "PCK@5px": 0.5415617128463476,
+      "PCK@10px": 0.6851385390428212,
+      "PCK@20px": 0.7329974811083123,
+      "homografi_kare": 38,
+      "homografi_kurulan_oran": 0.8421052631578947,
+      "metre_hata_medyan": 0.24730456647993831,
+      "basari_1m_oran": 0.7894736842105263
+    }
+  },
+  "unet_kp_egri_B5_t2": {
+    "val": {
+      "kare": 75,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.7567164179104477,
+      "medyan_hata_px": 2.3851391759997753,
+      "PCK@5px": 0.6179104477611941,
+      "PCK@10px": 0.7119402985074627,
+      "PCK@20px": 0.735820895522388,
+      "homografi_kare": 60,
+      "homografi_kurulan_oran": 0.9166666666666666,
+      "metre_hata_medyan": 0.326485339400523,
+      "basari_1m_oran": 0.9
+    },
+    "test_04": {
+      "kare": 25,
+      "etiketli_nokta": 174,
+      "bulunan_oran": 0.5057471264367817,
+      "medyan_hata_px": 3.064137977945435,
+      "PCK@5px": 0.3735632183908046,
+      "PCK@10px": 0.47126436781609193,
+      "PCK@20px": 0.5,
+      "homografi_kare": 17,
+      "homografi_kurulan_oran": 0.5294117647058824,
+      "metre_hata_medyan": 0.4069782288619274,
+      "basari_1m_oran": 0.5294117647058824
+    },
+    "test_onerisiz": {
+      "kare": 50,
+      "etiketli_nokta": 397,
+      "bulunan_oran": 0.6649874055415617,
+      "medyan_hata_px": 3.086529349754602,
+      "PCK@5px": 0.4836272040302267,
+      "PCK@10px": 0.5994962216624685,
+      "PCK@20px": 0.6322418136020151,
+      "homografi_kare": 38,
+      "homografi_kurulan_oran": 0.7105263157894737,
+      "metre_hata_medyan": 0.2638315900831273,
+      "basari_1m_oran": 0.6842105263157895
+    }
+  },
+  "unet_kp_egri_B8_t1": {
+    "val": {
+      "kare": 75,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.7776119402985074,
+      "medyan_hata_px": 2.24103150852962,
+      "PCK@5px": 0.6358208955223881,
+      "PCK@10px": 0.746268656716418,
+      "PCK@20px": 0.7611940298507462,
+      "homografi_kare": 60,
+      "homografi_kurulan_oran": 0.9166666666666666,
+      "metre_hata_medyan": 0.3279805567243329,
+      "basari_1m_oran": 0.85
+    },
+    "test_04": {
+      "kare": 25,
+      "etiketli_nokta": 174,
+      "bulunan_oran": 0.5172413793103449,
+      "medyan_hata_px": 2.7373009743990417,
+      "PCK@5px": 0.3850574712643678,
+      "PCK@10px": 0.46551724137931033,
+      "PCK@20px": 0.5057471264367817,
+      "homografi_kare": 17,
+      "homografi_kurulan_oran": 0.5294117647058824,
+      "metre_hata_medyan": 0.3285431786997987,
+      "basari_1m_oran": 0.5294117647058824
+    },
+    "test_onerisiz": {
+      "kare": 50,
+      "etiketli_nokta": 397,
+      "bulunan_oran": 0.6750629722921915,
+      "medyan_hata_px": 2.7170225466767404,
+      "PCK@5px": 0.5264483627204031,
+      "PCK@10px": 0.6272040302267002,
+      "PCK@20px": 0.6599496221662469,
+      "homografi_kare": 38,
+      "homografi_kurulan_oran": 0.7894736842105263,
+      "metre_hata_medyan": 0.24662815269247518,
+      "basari_1m_oran": 0.7368421052631579
+    }
+  },
+  "unet_kp_egri_B8_t2": {
+    "val": {
+      "kare": 75,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.808955223880597,
+      "medyan_hata_px": 2.412004186678791,
+      "PCK@5px": 0.6582089552238806,
+      "PCK@10px": 0.7507462686567165,
+      "PCK@20px": 0.7820895522388059,
+      "homografi_kare": 60,
+      "homografi_kurulan_oran": 0.9166666666666666,
+      "metre_hata_medyan": 0.27168483912227287,
+      "basari_1m_oran": 0.8833333333333333
+    },
+    "test_04": {
+      "kare": 25,
+      "etiketli_nokta": 174,
+      "bulunan_oran": 0.6724137931034483,
+      "medyan_hata_px": 3.1608718909678846,
+      "PCK@5px": 0.4885057471264368,
+      "PCK@10px": 0.6149425287356322,
+      "PCK@20px": 0.6609195402298851,
+      "homografi_kare": 17,
+      "homografi_kurulan_oran": 0.7647058823529411,
+      "metre_hata_medyan": 0.2872478919485556,
+      "basari_1m_oran": 0.7647058823529411
+    },
+    "test_onerisiz": {
+      "kare": 50,
+      "etiketli_nokta": 397,
+      "bulunan_oran": 0.7103274559193955,
+      "medyan_hata_px": 2.562983784931302,
+      "PCK@5px": 0.5566750629722922,
+      "PCK@10px": 0.6498740554156172,
+      "PCK@20px": 0.6851385390428212,
+      "homografi_kare": 38,
+      "homografi_kurulan_oran": 0.7631578947368421,
+      "metre_hata_medyan": 0.23479799073246435,
+      "basari_1m_oran": 0.7631578947368421
+    }
+  },
+  "unet_kp_egri_Bhep_t1": {
+    "val": {
+      "kare": 75,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.8402985074626865,
+      "medyan_hata_px": 2.152001652209207,
+      "PCK@5px": 0.682089552238806,
+      "PCK@10px": 0.8,
+      "PCK@20px": 0.8194029850746268,
+      "homografi_kare": 60,
+      "homografi_kurulan_oran": 0.9166666666666666,
+      "metre_hata_medyan": 0.2764056784424049,
+      "basari_1m_oran": 0.9
+    },
+    "test_04": {
+      "kare": 25,
+      "etiketli_nokta": 174,
+      "bulunan_oran": 0.6264367816091954,
+      "medyan_hata_px": 2.3371397523944113,
+      "PCK@5px": 0.4942528735632184,
+      "PCK@10px": 0.5747126436781609,
+      "PCK@20px": 0.6091954022988506,
+      "homografi_kare": 17,
+      "homografi_kurulan_oran": 0.6470588235294118,
+      "metre_hata_medyan": 0.25808248309006177,
+      "basari_1m_oran": 0.6470588235294118
+    },
+    "test_onerisiz": {
+      "kare": 50,
+      "etiketli_nokta": 397,
+      "bulunan_oran": 0.7304785894206549,
+      "medyan_hata_px": 2.740640638812568,
+      "PCK@5px": 0.5692695214105793,
+      "PCK@10px": 0.6926952141057935,
+      "PCK@20px": 0.7204030226700252,
+      "homografi_kare": 38,
+      "homografi_kurulan_oran": 0.7894736842105263,
+      "metre_hata_medyan": 0.23030769746657148,
+      "basari_1m_oran": 0.7105263157894737
+    }
+  },
+  "unet_kp_egri_Bhep_t2": {
+    "val": {
+      "kare": 75,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.8611940298507462,
+      "medyan_hata_px": 2.1270741511391327,
+      "PCK@5px": 0.7029850746268657,
+      "PCK@10px": 0.8208955223880597,
+      "PCK@20px": 0.8462686567164179,
+      "homografi_kare": 60,
+      "homografi_kurulan_oran": 0.9333333333333333,
+      "metre_hata_medyan": 0.28556654418364313,
+      "basari_1m_oran": 0.9333333333333333
+    },
+    "test_04": {
+      "kare": 25,
+      "etiketli_nokta": 174,
+      "bulunan_oran": 0.735632183908046,
+      "medyan_hata_px": 2.476873379331579,
+      "PCK@5px": 0.5459770114942529,
+      "PCK@10px": 0.6781609195402298,
+      "PCK@20px": 0.7241379310344828,
+      "homografi_kare": 17,
+      "homografi_kurulan_oran": 0.8823529411764706,
+      "metre_hata_medyan": 0.29231208554016236,
+      "basari_1m_oran": 0.8235294117647058
+    },
+    "test_onerisiz": {
+      "kare": 50,
+      "etiketli_nokta": 397,
+      "bulunan_oran": 0.7707808564231738,
+      "medyan_hata_px": 2.834705550062568,
+      "PCK@5px": 0.5919395465994962,
+      "PCK@10px": 0.7178841309823678,
+      "PCK@20px": 0.7405541561712846,
+      "homografi_kare": 38,
+      "homografi_kurulan_oran": 0.8157894736842105,
+      "metre_hata_medyan": 0.21824196461703263,
+      "basari_1m_oran": 0.7894736842105263
+    }
   }
 }

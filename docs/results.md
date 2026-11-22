@@ -103,6 +103,23 @@ schedule; it is therefore reported as a reference level and **not** as the first
 Since curve A is flat beyond 39 frames, the remaining error is attributed to localisation precision rather
 than data quantity (PCK@5 ≈ 69 % versus PCK@20 ≈ 85 %).
 
+**Training randomness (3 seeds).** The bootstrap intervals above capture test-set sampling only. Every run of
+the learning curve was repeated with two further training seeds (same data subsets, recipe and budget;
+`results/logs/tohum_tekrar.ps1`, `src/tohum_ozet.py`, `results/tohum_ozet.json`). PCK@10 (%), mean ± standard
+deviation over 3 seeds:
+
+| Real frames | 39 | 65 | 89 | 143 |
+|---|---|---|---|---|
+| A: synthetic pre-training + mix | 79.3 ± 0.2 | 78.7 ± 0.2 | 79.1 ± 0.4 | 80.4 ± 0.6 |
+| B: real only | 55.6 ± 5.6 | 65.3 ± 4.7 | 64.6 ± 1.7 | 71.2 ± 1.7 |
+
+* The findings hold across seeds: curve A stays flat (+1.2 points from 39 to 143 frames), curve B keeps
+  rising (+15.6), and A exceeds B by 23.7 points at 39 frames and 9.2 points at 143 frames on average.
+* **Synthetic pre-training also stabilises training:** the seed-to-seed spread of A is 0.2–0.6 points, that of
+  B up to 5.6 points with little data (one seed reached only 49.1 % at 39 frames). The single-seed B values
+  reported above (59.4 / 67.5 / 66.0 / 72.5) were therefore somewhat favourable for B.
+* The synthetic-only model (72.8) and B at 143 frames (71.2 ± 1.7, range 69.3–72.5) remain comparable.
+
 ## 4. End-to-end error in metres
 
 The homography is fitted from the **model's** keypoints; the **hand-labelled** points are then projected

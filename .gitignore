@@ -29,6 +29,7 @@ results/*
 !results/takim_tutarlilik.json
 !results/oyuncu_harita.json
 !results/cizgi_iyilestirme_val.json
+!results/tohum_ozet.json
 !results/tespit_futbol_v1.json
 !results/tespit_val_secimi.json
 !results/sentetik_onizleme.jpg
