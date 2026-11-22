@@ -139,7 +139,6 @@ def calistir(hazir_ad, yuklenen, model_ad, oyuncu_ad, esik):
     birlesik, sahadakiler, kal = sonuc_uret(img, noktalar, kal=kal, yolo=OYUNCU_MODELLERI[oyuncu_ad])
     ic = int(kal.icerdeki.sum()) if kal.icerdeki is not None else len(noktalar)
     oyuncu = sum(t.sinif != "top" for t in sahadakiler)
-    top = any(t.sinif == "top" for t in sahadakiler)
 
     satirlar = [
         "| | |", "|---|---|",
@@ -147,7 +146,6 @@ def calistir(hazir_ad, yuklenen, model_ad, oyuncu_ad, esik):
         f"| RANSAC'ın kabul ettiği | **{ic}** (kırmızılar atıldı) |",
         f"| Homografi iç hatası | {kal.hata_metre:.2f} m · {kal.hata_piksel:.1f} px |",
         f"| Sahadaki oyuncu / hakem | **{oyuncu}** |",
-        f"| Top | {'bulundu' if top else 'bulunamadı'} |",
     ]
     if etiket_yolu is not None:
         h = gercek_hata(etiket_yolu, kal.H)
@@ -162,22 +160,42 @@ def calistir(hazir_ad, yuklenen, model_ad, oyuncu_ad, esik):
     return nokta_gorsel, cv2.cvtColor(birlesik, cv2.COLOR_BGR2RGB), "\n".join(satirlar)
 
 
+def mac_adlari() -> dict[str, str]:
+    """kaynaklar.csv: dosya adı → 'Ev – Deplasman (turnuva)'."""
+    yol = PROJE / "data" / "raw_videos" / "kaynaklar.csv"
+    if not yol.exists():
+        return {}
+    out = {}
+    for satir in yol.read_text(encoding="utf-8").splitlines()[1:]:
+        s = satir.split(";")
+        if len(s) > 3:
+            out[Path(s[0]).stem] = f"{s[1].replace(' - ', ' – ')} ({s[3].rstrip('?')})"
+    return out
+
+
 def video_sureleri() -> dict[str, Path]:
-    """data\\raw_videos'taki maç özetleri: 'görünen ad' → yol."""
-    sonuc = {}
+    """data\\raw_videos'taki maç özetleri: 'görünen ad' → yol. Eğitimde görülmemiş maçlar önce."""
+    adlar = mac_adlari()
+    gorulmemis, egitim = {}, {}
     for v in sorted((PROJE / "data" / "raw_videos").glob("*.mp4")):
+        if v.stem.startswith("14_"):            # derleme, tek maç değil
+            continue
         cap = cv2.VideoCapture(str(v))
         sn = cap.get(cv2.CAP_PROP_FRAME_COUNT) / (cap.get(cv2.CAP_PROP_FPS) or 25)
         cap.release()
-        sonuc[f"maç {v.stem[:2]} ({BOLME.get(v.stem, '?')}) · {int(sn // 60)}:{int(sn % 60):02d}"] = v
-    return sonuc
+        ad = f"{adlar.get(v.stem, 'maç ' + v.stem[:2])} · {int(sn // 60)}:{int(sn % 60):02d}"
+        if BOLME.get(v.stem) in ("test", "val"):
+            gorulmemis[f"{ad} · eğitimde görülmedi"] = v
+        else:
+            egitim[ad] = v
+    return {**gorulmemis, **egitim}
 
 
 VIDEOLAR = video_sureleri()
 
 
-def video_calistir(hazir_ad, yuklenen, bas, sure, model_ad, oyuncu_ad, hedef_fps, gorunum, yumusat, top_goster,
-                   kirp, ilerleme=gr.Progress()):
+def video_calistir(hazir_ad, yuklenen, bas, sure, model_ad, oyuncu_ad, hedef_fps, gorunum, yumusat,
+                   ilerleme=gr.Progress()):
     from sistem import video_isle
     yol = Path(yuklenen) if yuklenen else VIDEOLAR.get(hazir_ad)
     if yol is None:
@@ -187,21 +205,17 @@ def video_calistir(hazir_ad, yuklenen, bas, sure, model_ad, oyuncu_ad, hedef_fps
     cikti = VIDEO_CIKTI / f"{yol.stem[:40]}_{int(bas)}s_{time.strftime('%H%M%S')}.mp4"
     s = video_isle(model, yol, cikti, bas=float(bas), sure=float(sure), hedef_fps=float(hedef_fps),
                    yolo=OYUNCU_MODELLERI[oyuncu_ad], sadece_harita=gorunum.startswith("Sadece"),
-                   yumusat=bool(yumusat), top_goster=bool(top_goster), kirp=bool(kirp),
+                   yumusat=bool(yumusat), top_goster=False, kirp=True,
                    ilerleme=lambda o, m: ilerleme(o, desc=m))
     if not s["yol"]:
-        return None, ("Bu aralıkta sahanın haritalanabildiği (en az 1 sn'lik) bir sahne yok." if s["islenen"]
-                      else "Video okunamadı ya da seçilen aralık videonun dışında.")
-    oran = s["haritalanan"] / max(1, s["islenen"])
+        return None, ("Bu aralıkta saha görünen bir oyun sahnesi yok; başka bir başlangıç saniyesi dene."
+                      if s["islenen"] else "Video okunamadı ya da seçilen aralık videonun dışında.")
     ozet = "\n".join([
         "| | |", "|---|---|",
-        f"| İşlenen video | {s['video_sn']:.0f} sn ({s['islenen']} kare, saniyede {hedef_fps:.0f}) |",
-        f"| Haritası çıkarılan kare | **{s['haritalanan']}** (%{oran * 100:.0f}) — gerisi yakın plan / tribün / tekrar |",
-        f"| Çıktı videosu | {s['cikti_sn']:.0f} sn" + (" (saha görünmeyen sahneler kırpıldı)" if kirp else "") + " |",
-        f"| Algılanan sahne kesmesi | {s['kesme']} |",
-        f"| Reddedilen homografi sıçraması | {s['reddedilen_sicrama']} |",
+        f"| İşlenen video | {s['video_sn']:.0f} sn ({s['islenen']} kare) |",
+        f"| Kuş bakışı video | **{s['cikti_sn']:.0f} sn** oyun görüntüsü |",
+        f"| Algılanan sahne | {s['kesme'] + 1} |",
         f"| İşlem süresi | {s['sure_sn']:.0f} sn |",
-        f"| Dosya | `{Path(s['yol']).relative_to(PROJE)}` |",
     ])
     return s["yol"], ozet
 
@@ -216,35 +230,34 @@ oyuncuların **ayak noktaları** kuş bakışı haritaya taşınır.
 with gr.Blocks(title="Kuş Bakışı Futbol") as demo:
     gr.Markdown(ACIKLAMA)
     with gr.Tab("Maç özeti → kuş bakışı video"):
-        gr.Markdown("Bir maç özeti yükle ya da hazır listeden seç. Video karelere ayrılır, her karede saha ve "
-                    "oyuncular bulunur, sonuç **kuş bakışı video** olarak oynatılır. Yakın plan ve tekrar "
-                    "görüntülerinde haritada *saha görünmüyor* yazar. 1 dakikalık video ≈ 1,5–2 dakikada işlenir.")
+        gr.Markdown("Bir maç özeti seç ya da kendi videonu yükle. Her karede saha ve oyuncular bulunur, takımlar "
+                    "forma renginden ayrılır, sonuç akıcı bir **kuş bakışı video** olarak oynatılır; yakın plan, "
+                    "tribün ve tekrar görüntüleri otomatik olarak çıkarılır. 1 dakikalık video ≈ 1,5–2 dakikada "
+                    "işlenir.")
         with gr.Row():
             with gr.Column(scale=1):
-                v_hazir = gr.Dropdown(list(VIDEOLAR), value=next((k for k in VIDEOLAR if k.startswith("maç 12")),
+                v_hazir = gr.Dropdown(list(VIDEOLAR), value=next((k for k in VIDEOLAR if "Manchester" in k),
                                                                   next(iter(VIDEOLAR), None)),
-                                      label="Hazır maç özeti (data\\raw_videos)")
+                                      label="Hazır maç özeti")
                 v_yuklenen = gr.Video(label="…ya da kendi videonu yükle (yüklersen bu kullanılır)", height=180)
                 with gr.Row():
                     v_bas = gr.Number(value=60, minimum=0, label="Başlangıç (sn)")
                     v_sure = gr.Slider(5, 300, value=30, step=5, label="Süre (sn)")
-                v_model = gr.Dropdown(list(SAHA_MODELLERI), value=next(iter(SAHA_MODELLERI)),
-                                      label="Saha noktası modeli")
-                v_oyuncu = gr.Radio(list(OYUNCU_MODELLERI), value=next(iter(OYUNCU_MODELLERI)),
-                                    label="Oyuncu tespit modeli")
-                v_fps = gr.Slider(4, 25, value=12, step=1, label="Saniyede işlenecek kare (az → hızlı, kesik)")
                 v_gorunum = gr.Radio(["Yan yana (görüntü + harita)", "Sadece kuş bakışı harita"],
                                      value="Yan yana (görüntü + harita)", label="Çıktı")
-                v_yumusat = gr.Checkbox(value=True, label="Zamansal yumuşatma ve oyuncu takibi "
-                                                          "(kapalı: her kare bağımsız)")
-                v_top = gr.Checkbox(value=False, label="Topu haritada göster (titrek olabilir)")
-                v_kirp = gr.Checkbox(value=True, label="Saha görünmeyen sahneleri videodan kırp")
+                with gr.Accordion("Gelişmiş ayarlar", open=False):
+                    v_model = gr.Dropdown(list(SAHA_MODELLERI), value=next(iter(SAHA_MODELLERI)),
+                                          label="Saha noktası modeli")
+                    v_oyuncu = gr.Radio(list(OYUNCU_MODELLERI), value=next(iter(OYUNCU_MODELLERI)),
+                                        label="Oyuncu tespit modeli")
+                    v_fps = gr.Slider(4, 25, value=12, step=1, label="Saniyede işlenecek kare")
+                    v_yumusat = gr.Checkbox(value=True, label="Oyuncu takibi ve zamansal yumuşatma")
                 v_calis = gr.Button("Videoyu işle", variant="primary")
                 v_ozet = gr.Markdown()
             with gr.Column(scale=2):
                 v_sonuc = gr.Video(label="Kuş bakışı video", autoplay=True)
-        v_calis.click(video_calistir, [v_hazir, v_yuklenen, v_bas, v_sure, v_model, v_oyuncu, v_fps, v_gorunum, v_yumusat, v_top, v_kirp],
-                      [v_sonuc, v_ozet])
+        v_calis.click(video_calistir, [v_hazir, v_yuklenen, v_bas, v_sure, v_model, v_oyuncu, v_fps, v_gorunum,
+                                       v_yumusat], [v_sonuc, v_ozet])
 
     with gr.Tab("Tek kare (gerçek hata ölçümüyle)"):
         gr.Markdown("Hazır listedeki test / val kareleri eğitimde **hiç görülmedi** ve elle etiketli olduğu için "
@@ -255,11 +268,12 @@ with gr.Blocks(title="Kuş Bakışı Futbol") as demo:
                 hazir = gr.Dropdown(list(HAZIR), value=next(iter(HAZIR), None), label="Hazır kare (elle etiketli)")
                 yuklenen = gr.Image(label="…ya da kendi görüntünü yükle (yüklersen bu kullanılır)", type="numpy",
                                     height=200)
-                model_ad = gr.Dropdown(list(SAHA_MODELLERI), value=next(iter(SAHA_MODELLERI)),
-                                       label="Saha noktası modeli")
-                oyuncu_ad = gr.Radio(list(OYUNCU_MODELLERI), value=next(iter(OYUNCU_MODELLERI)),
-                                     label="Oyuncu tespit modeli")
-                esik = gr.Slider(0.1, 0.9, value=0.5, step=0.05, label="Nokta güven eşiği")
+                with gr.Accordion("Gelişmiş ayarlar (model karşılaştırma)", open=False):
+                    model_ad = gr.Dropdown(list(SAHA_MODELLERI), value=next(iter(SAHA_MODELLERI)),
+                                           label="Saha noktası modeli")
+                    oyuncu_ad = gr.Radio(list(OYUNCU_MODELLERI), value=next(iter(OYUNCU_MODELLERI)),
+                                         label="Oyuncu tespit modeli")
+                    esik = gr.Slider(0.1, 0.9, value=0.5, step=0.05, label="Nokta güven eşiği")
                 with gr.Row():
                     rastgele = gr.Button("Rastgele kare")
                     calis = gr.Button("Çalıştır", variant="primary")
