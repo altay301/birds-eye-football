@@ -100,6 +100,11 @@ that box confidence collapsed, so the synthetic-only model produced no keypoints
 real data helped but its keypoints stay coarse (box-relative regression at 640 px vs. full-resolution heatmaps).
 
 ### 5.3 Players and teams (`src/oyuncu.py`)
+Foot point = bottom centre of the box. For boxes touching the bottom image border (feet not visible) the
+height is taken from the three fully visible persons with the nearest top edge (perspective: same distance,
+same apparent height); evaluated by simulation in results §8.3. A check for systematic foot-point bias of the
+detector found none (results §8.3).
+
 YOLOv8m at 1536 px input (selected over 1280 px and goalkeeper oversampling on validation matches),
 fine-tuned from COCO on our box annotations with four role classes — player,
 goalkeeper, referee, ball (`src/kutu_veri_hazirla.py`, `src/egit_tespit.py`; protocol in

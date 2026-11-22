@@ -42,7 +42,7 @@ import pitch
 from homografi import HomografiSonuc, cizgileri_goruntuye_ciz, isareti_duzelt, noktalari_donustur
 from keypoint_tahmin import SahaModeli, model_yukle, oku, ransac_homografi
 from manuel_kalibrasyon import sonuc_uret
-from oyuncu import oyunculari_takip_et
+from oyuncu import kesik_ayaklari_tahmin_et, oyunculari_takip_et
 from takip import HomografiFiltresi, OyuncuTakipci, TakimAtayici
 
 PROJE = Path(__file__).resolve().parent.parent
@@ -218,6 +218,7 @@ class VideoHatti:
         self.ilk = False
         if kal is None:
             return None, [], []
+        kesik_ayaklari_tahmin_et(tespitler, img.shape[0])        # alt kenarda kesilen oyuncular
         ayak = np.array([t.ayak for t in tespitler]).reshape(-1, 2)
         saha = noktalari_donustur(kal.H, ayak) if len(tespitler) else np.empty((0, 2))
         sahadakiler = []

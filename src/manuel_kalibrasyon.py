@@ -41,7 +41,7 @@ import numpy as np
 
 import pitch
 from homografi import cizgileri_goruntuye_ciz, homografi_hesapla, isareti_duzelt, noktalari_donustur
-from oyuncu import oyunculari_bul, takimlara_ayir
+from oyuncu import kesik_ayaklari_tahmin_et, oyunculari_bul, takimlara_ayir
 
 PROJE = Path(__file__).resolve().parent.parent
 NOKTA_KLASOR = PROJE / "data" / "kalibrasyon"
@@ -114,6 +114,7 @@ def sonuc_uret(goruntu: np.ndarray, noktalar: list[dict], kal=None,
     takimlara_ayir(goruntu, tespitler)
 
     # Ayak noktalarını sahaya taşı; saha dışına düşenleri (tribün, yedek kulübesi) at
+    kesik_ayaklari_tahmin_et(tespitler, goruntu.shape[0])    # alt kenarda kesilen oyuncular
     ayaklar = np.array([t.ayak for t in tespitler]).reshape(-1, 2)
     saha_konum = noktalari_donustur(kal.H, ayaklar) if len(tespitler) else np.empty((0, 2))
     sahadakiler = []

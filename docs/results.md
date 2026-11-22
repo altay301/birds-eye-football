@@ -362,7 +362,30 @@ empty or wrong video map:
 The stability measurements of §8 and §8.1 were re-run after the fixes; changes are within a few hundredths of a
 metre or label change per 100 track-frames.
 
-### 8.3 Negative result: refining the homography on the pitch lines
+### 8.3 Foot point: bias check and players cut off at the image border
+
+`src/ayak_kenar_analiz.py`, `results/ayak_kenar.json`; detector v3, confidence ≥ 0.25.
+
+* **No systematic foot-point bias.** On the validation frames the bottom edge of matched detections differs
+  from the annotated bottom edge (placed at the feet by protocol) by a median of −0.07 % of the box height,
+  95 % bootstrap CI [−0.24 %, +0.06 %] — not significant. Applying the correction on the test frames does not
+  change the foot-point difference (median 0.060 m → 0.065 m). No correction is applied. Caveat: most annotated
+  boxes kept COCO's coordinates (§6), so this checks consistency with the annotations, not the true feet.
+* **Players cut off at the bottom image border.** Their box ends at the border, not at the feet, which places
+  them too close to the camera. Since their true feet are unknown, the problem was **simulated**: fully visible
+  annotated players were cut artificially at 60 / 75 / 90 % of their height, and foot estimates were compared
+  with the true foot point (manual homography). Method chosen on validation, reported on test:
+
+  | Estimate of the foot (median error, test; validation in parentheses) | cut at 60 % | 75 % | 90 % |
+  |---|---|---|---|
+  | border line (previous behaviour) | 3.56 m (3.09) | 2.19 m (1.90) | 0.86 m (0.75) |
+  | height from the frame's median aspect ratio × width | 1.29 m (1.12) | 1.27 m (1.08) | 0.86 m (0.78) |
+  | **height of the 3 fully visible persons with the nearest top edge** | **0.62 m (0.53)** | **0.61 m (0.53)** | **0.61 m (0.51)** |
+
+  The last method uses perspective — persons at the same distance from the camera appear equally tall — and is
+  now applied to every person box touching the bottom border (single-frame and video mode).
+
+### 8.4 Negative result: refining the homography on the pitch lines
 
 The homography was refined by fitting the projected pitch template to the white line pixels of the image
 (top-hat filter on Lab lightness inside the grass region, distance transform, 8-parameter robust least

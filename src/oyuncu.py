@@ -39,7 +39,28 @@ class Tespit:
     @property
     def ayak(self) -> tuple[float, float]:
         x1, y1, x2, y2 = self.kutu
-        return ((x1 + x2) / 2, y2)
+        return ((x1 + x2) / 2, self.ek.get("ayak_y", y2))   # kenarda kesikse tahmin edilen ayak (bkz. aşağı)
+
+
+def kesik_ayaklari_tahmin_et(tespitler: list[Tespit], goruntu_yuksekligi: int, pay: int = 2) -> int:
+    """
+    Görüntünün ALT KENARINA değen kutuda ayaklar görünmez: alt kenar ayak değil kesim çizgisidir ve oyuncu
+    kameraya olduğundan yakın görünür. Perspektif: kameradan aynı uzaklıktaki oyuncular görüntüde aynı boydadır
+    → üst kenarı en yakın 3 TAM görünen kişinin medyan boyu, kesik kişinin boyu kabul edilir.
+    Benzetimle ölçüldü (tam kutular yapay kesilip): kesim çizgisi 1.9–3.6 m, bu yöntem 0.5–0.6 m medyan hata
+    (src/ayak_kenar_analiz.py). Döner: düzeltilen kişi sayısı.
+    """
+    kisiler = [t for t in tespitler if t.sinif != "top"]
+    kesik = [t for t in kisiler if t.kutu[3] >= goruntu_yuksekligi - pay]
+    tam = [t for t in kisiler if t.kutu[3] < goruntu_yuksekligi - pay]
+    if not kesik or len(tam) < 3:
+        return 0
+    ust = np.array([t.kutu[1] for t in tam])
+    boy = np.array([t.kutu[3] - t.kutu[1] for t in tam])
+    for t in kesik:
+        yakin = np.argsort(np.abs(ust - t.kutu[1]))[:3]
+        t.ek["ayak_y"] = t.kutu[1] + max(float(np.median(boy[yakin])), t.kutu[3] - t.kutu[1])
+    return len(kesik)
 
 
 _model_onbellek = {}
