@@ -138,9 +138,17 @@ out in HSV, median colour, K-means (k = 2) in Lab space; the map shows each team
 * **Position smoothing** (`OyuncuTakipci`). Per identity, pitch positions are averaged exponentially
   (β = 0.4; no smoothing for the ball). A single-frame jump > 4 m is ignored as an association or detection
   error; tracks unseen for up to 6 frames are held at their last position; the last ~1.5 s are drawn as a trail.
-* **Persistent team assignment** (`TakimAtayici`). Two team colour centres are initialised by K-means at the
-  start of a shot and then updated slowly (rate 0.05); each player is assigned to the nearest centre, with a
-  majority vote over its last 15 frames. A colour farther than 2.5 × the typical within-team spread from both
-  centres is labelled *other* (referees, goalkeepers). This removes frame-to-frame colour flicker.
+* **Track-level role and team assignment** (`TakimAtayici`). Decisions are made per track, not per frame:
+  * *Role vote*: the detector's role (player / goalkeeper / referee) is a majority vote over the track's last
+    30 frames, so a referee predicted as a player in a single frame stays a referee (hidden on the map).
+  * *Team colours*: two colour centres are initialised by K-means at the start of a shot and updated slowly
+    (rate 0.05); each player is assigned to the nearest centre, with a vote over its last 30 frames.
+    Colours measured while a box overlaps another box by more than 20 % of its area (mixed jerseys) are not
+    counted. A colour farther than 2.5 × the typical within-team spread from both centres is labelled *other*.
+  * *Hysteresis*: a displayed label changes only when the new candidate leads the current one by 4 votes.
+  * Referees and *other* are not drawn on the map.
+* **Scene cropping** (default): frames without a homography are removed from the output video, and mapped
+  segments shorter than 1 s are dropped, so the result plays as a continuous bird's-eye video
+  (`--kirpma` restores full-length output with a "pitch not visible" panel).
 * Output is piped to `ffmpeg` (H.264, yuv420p, faststart) so it plays directly in the browser.
 * Throughput on an RTX 4070 Laptop: ~0.15 s per processed frame → a 1-minute highlight takes ~1.5–2 min.

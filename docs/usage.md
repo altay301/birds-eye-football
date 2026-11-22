@@ -95,8 +95,9 @@ python -X utf8 src/sistem.py --model models/unet_kp_gercek_v1.pt --video match.m
     --bas 0 --sure 120 --fps 12 --sadece-harita
 ```
 
-Video options: `--yumusatma-yok` disables the homography filter, tracking-based smoothing and trails (each
-frame independent), `--kesme-esigi` scene-cut threshold (0–1), `--yolo yolov8m.pt` for the larger detector.
+Video options: `--kirpma` keeps frames without a visible pitch (default: they are cut out),
+`--top-goster` draws the ball on the map, `--yumusatma-yok` disables the homography filter, tracking-based
+smoothing and trails (each frame independent), `--kesme-esigi` scene-cut threshold (0–1), `--yolo yolov8m.pt` for the larger detector.
 Smoothing parameters are set in `src/takip.py`. Stability measurement: `python -X utf8 src/video_titreme.py`
 (test clips) or `--val` (validation clips, used for parameter selection).
 

@@ -260,6 +260,25 @@ test matches (`src/video_titreme.py`, `results/video_titreme.json`):
 * Limitations of this evaluation: the metric measures smoothness, not accuracy; parameters were selected on
   two short validation clips; one run per clip.
 
+### 8.1 Role and team label stability
+
+Observed in the demo: the same player occasionally switched team colour, and goalkeepers and referees
+alternated between their role colour and a black *other* marker (referees thereby appeared on the map). The
+cause was per-frame decision making. Track-level role voting, occlusion-aware colour voting and hysteresis
+(§7 of the method) were compared with the previous per-frame assignment on 40 s clips of the test matches,
+with identical detections and tracks (`src/takim_tutarlilik.py`, `results/takim_tutarlilik.json`):
+
+| Clip | Label changes per 100 track-frames, previous → new | Black *other* markers on the map, previous → new |
+|---|---|---|
+| 12 (60–100 s) | 2.33 → **1.36** | 4.7 % → 0 % |
+| 11 (90–130 s) | 3.02 → **2.05** | 4.4 % → 0 % |
+| 04 (120–160 s) | 1.64 → **0.67** | 1.0 % → 0 % |
+
+Label changes drop by 32–59 %. Remaining changes are largely attributable to identity switches of the tracker
+when players overlap, which no assignment rule can correct. Caveat: these clips were also used while developing
+this step (the hysteresis rule was added after a first measurement), so the numbers are not an independent
+held-out evaluation.
+
 ## 9. Video demo
 
 Juventus – Inter highlight (test match 12), 15 s at 12 processed fps: 104 of 180 frames mapped (58 %; the

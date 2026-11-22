@@ -101,15 +101,56 @@ class HomografiFiltresi:
         return self.kal
 
 
+def _kapali(kutular: np.ndarray, oran: float = 0.2) -> np.ndarray:
+    """Her kutu için: alanının 'oran'dan fazlası başka bir kutuyla örtüşüyor mu? (renk karışır)"""
+    n = len(kutular)
+    if n < 2:
+        return np.zeros(n, bool)
+    x1 = np.maximum(kutular[:, None, 0], kutular[None, :, 0]); y1 = np.maximum(kutular[:, None, 1], kutular[None, :, 1])
+    x2 = np.minimum(kutular[:, None, 2], kutular[None, :, 2]); y2 = np.minimum(kutular[:, None, 3], kutular[None, :, 3])
+    kes = np.clip(x2 - x1, 0, None) * np.clip(y2 - y1, 0, None)
+    np.fill_diagonal(kes, 0)
+    alan = (kutular[:, 2] - kutular[:, 0]) * (kutular[:, 3] - kutular[:, 1])
+    return kes.max(1) > oran * np.maximum(alan, 1e-9)
+
+
 class TakimAtayici:
-    def __init__(self, guncelleme: float = 0.05, diger_carpan: float = 2.5, oy: int = 15):
-        self.guncelleme, self.diger_carpan, self.oy = guncelleme, diger_carpan, oy
+    """
+    kararli=True (varsayılan) — kararları KARE değil İZ (takip kimliği) düzeyinde verir:
+      1) ROL OYLAMASI: tespit modeli rolü (oyuncu/kaleci/hakem) her karede yeniden tahmin eder ve
+         arada yanılır; bir izin rolü son 'oy_rol' karedeki tahminlerin çoğunluğudur. Böylece hakem
+         tek bir karede "oyuncu" dense bile hakem kalır (haritada gizli).
+      2) KAPANMA KONTROLÜ: kutusu başka kutuyla belirgin örtüşen oyuncunun o karedeki forma rengi
+         (iki formanın karışımı) takım oylamasına KATILMAZ.
+      3) Uzun takım oylaması (son 'oy' kare) + HİSTEREZİS: etiket ancak yeni aday mevcut etiketi
+         'fark' oy geçerse değişir.
+    kararli=False — önceki davranış (karşılaştırma için).
+    """
+
+    def __init__(self, guncelleme: float = 0.05, diger_carpan: float = 2.5, oy: int = 30, oy_rol: int = 30,
+                 kararli: bool = True, fark: int = 4):
+        self.guncelleme, self.diger_carpan, self.kararli, self.fark = guncelleme, diger_carpan, kararli, fark
+        self.oy, self.oy_rol = (oy, oy_rol) if kararli else (15, 1)
         self.sifirla()
 
     def sifirla(self):
         self.merkez = None       # (2, 3) Lab
         self.yayilim = None      # takım içi tipik renk uzaklığı
         self.oylar: dict[int, deque] = {}
+        self.rol_oylari: dict[int, deque] = {}
+        self.secili: dict[tuple, str] = {}       # (tür, iz) → şu an gösterilen etiket (histerezis için)
+
+    def _karar(self, tur: str, tid: int, oylar: deque) -> str:
+        """
+        HİSTEREZİS: etiket ancak yeni aday, mevcut etiketi oy sayısında 'fark' kadar geçerse değişir.
+        (Oy sayısı azken başa baş çoğunluğun kareden kareye dönüp durmasını engeller.)
+        """
+        say = Counter(oylar)
+        aday, n = say.most_common(1)[0]
+        mevcut = self.secili.get((tur, tid))
+        if mevcut is None or not self.kararli or n >= say.get(mevcut, 0) + self.fark:
+            self.secili[(tur, tid)] = mevcut = aday
+        return mevcut
 
     @staticmethod
     def _lab(bgr) -> np.ndarray:
@@ -117,35 +158,46 @@ class TakimAtayici:
 
     def ata(self, tespitler) -> None:
         """
-        Tespit.renk_bgr dolu OYUNCULAR için t.sinif = takim_A / takim_B / diger, t.ek['takim_renk'].
-        Kendi tespit modelimiz kaleci ve hakemi zaten ayrı sınıf olarak verir; onlara dokunulmaz.
+        Kişiler için t.sinif = takim_A / takim_B / diger / kaleci / hakem, oyunculara t.ek['takim_renk'].
         """
-        oyuncular = [t for t in tespitler if t.sinif == "oyuncu" and t.renk_bgr is not None]
+        kisiler = [t for t in tespitler if t.sinif != "top"]
+        if self.kararli:
+            for t in kisiler:                                               # 1) rol oylaması
+                tid = t.ek.get("id")
+                if tid is not None:
+                    self.rol_oylari.setdefault(tid, deque(maxlen=self.oy_rol)).append(t.sinif)
+                    t.sinif = self._karar("rol", tid, self.rol_oylari[tid])
+        oyuncular = [t for t in kisiler if t.sinif == "oyuncu" and t.renk_bgr is not None]
         if not oyuncular:
             return
+        kapali = (_kapali(np.array([t.kutu for t in oyuncular], float)) if self.kararli
+                  else np.zeros(len(oyuncular), bool))                      # 2) kapanma
         lab = np.array([self._lab(t.renk_bgr) for t in oyuncular])
         if self.merkez is None:
-            if len(oyuncular) < 6:
+            temiz = lab[~kapali] if (~kapali).sum() >= 6 else lab
+            if len(temiz) < 6:
                 return
             cv2.setRNGSeed(0)
             kriter = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 50, 0.1)
-            _, e, m = cv2.kmeans(lab, 2, None, kriter, 10, cv2.KMEANS_PP_CENTERS)
+            _, e, m = cv2.kmeans(temiz, 2, None, kriter, 10, cv2.KMEANS_PP_CENTERS)
             self.merkez = m
-            d = np.linalg.norm(lab - m[e.ravel()], axis=1)
+            d = np.linalg.norm(temiz - m[e.ravel()], axis=1)
             self.yayilim = max(8.0, float(np.median(d)))
         d = np.linalg.norm(lab[:, None, :] - self.merkez[None], axis=2)      # (n, 2)
         en_yakin = d.argmin(1)
         diger = d.min(1) > self.diger_carpan * self.yayilim
         for k in (0, 1):                                                    # merkezleri yavaşça güncelle
-            sec = (en_yakin == k) & ~diger
+            sec = (en_yakin == k) & ~diger & ~kapali
             if sec.any():
                 self.merkez[k] = (1 - self.guncelleme) * self.merkez[k] + self.guncelleme * lab[sec].mean(0)
-        for t, k, dg in zip(oyuncular, en_yakin, diger):
+        for t, k, dg, kp in zip(oyuncular, en_yakin, diger, kapali):
             etiket = "diger" if dg else ("takim_A" if k == 0 else "takim_B")
             tid = t.ek.get("id")
-            if tid is not None:                                             # kimlik başına çoğunluk oyu
-                self.oylar.setdefault(tid, deque(maxlen=self.oy)).append(etiket)
-                etiket = Counter(self.oylar[tid]).most_common(1)[0][0]
+            if tid is not None:                                             # 3) iz başına çoğunluk oyu
+                oylar = self.oylar.setdefault(tid, deque(maxlen=self.oy))
+                if not kp or not oylar:                                     # kapalı karenin rengi oy değil
+                    oylar.append(etiket)
+                etiket = self._karar("takim", tid, oylar)
             t.sinif = etiket
         renk = {}
         for k, ad in ((0, "takim_A"), (1, "takim_B")):
