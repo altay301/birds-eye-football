@@ -88,6 +88,10 @@ Full description: [docs/method.md](docs/method.md).
 | **ResNet-18/U-Net** | **synthetic + real** | **80.6 [68.1, 91.0]** | **2.7** | **86.8 [75.6, 97.3]** |
 
 The difference between the U-Net and YOLO-pose is +65.0 points PCK@10 (paired 95 % CI [+53.5, +76.0]).
+**Independent replication:** on a match added only after development had finished (match 20, 18 frames
+annotated without suggestions) the U-Net reaches PCK@10 = 90.9 % [81.3, 97.0] and < 1 m in 17 of 18 frames;
+all paired differences replicate (U-Net − YOLO-pose +65.1; synthetic pre-training +8.0 at 143 frames;
+[results §2.1](docs/results.md#21-independent-replication-on-a-new-match)).
 Marginal intervals are wide because frame difficulty varies strongly; it affects all models alike, so
 comparisons are made with paired intervals. On test match 04, annotated with model suggestions, the same
 model scores PCK@10 = 89.7 % and 100 % calibration success, which quantifies the optimism of

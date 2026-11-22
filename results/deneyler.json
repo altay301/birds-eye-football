@@ -2,12 +2,12 @@
   "unet_kp_sentetik_v1": {
     "val": {
       "kare": 75,
-      "etiketli_nokta": 663,
-      "bulunan_oran": 0.9245852187028658,
-      "medyan_hata_px": 0.565685424949313,
-      "PCK@5px": 0.8371040723981901,
-      "PCK@10px": 0.8793363499245852,
-      "PCK@20px": 0.8914027149321267,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.9149253731343283,
+      "medyan_hata_px": 0.5696002496879382,
+      "PCK@5px": 0.8253731343283582,
+      "PCK@10px": 0.8686567164179104,
+      "PCK@20px": 0.8820895522388059,
       "homografi_kare": 60,
       "homografi_kurulan_oran": 0.95,
       "metre_hata_medyan": 0.22695757729563246,
@@ -38,17 +38,30 @@
       "homografi_kurulan_oran": 0.9210526315789473,
       "metre_hata_medyan": 0.26520779434345143,
       "basari_1m_oran": 0.7894736842105263
+    },
+    "test_yeni": {
+      "kare": 25,
+      "etiketli_nokta": 175,
+      "bulunan_oran": 0.9428571428571428,
+      "medyan_hata_px": 2.8284271247462223,
+      "PCK@5px": 0.7371428571428571,
+      "PCK@10px": 0.8628571428571429,
+      "PCK@20px": 0.9028571428571428,
+      "homografi_kare": 18,
+      "homografi_kurulan_oran": 0.9444444444444444,
+      "metre_hata_medyan": 0.2980152620149527,
+      "basari_1m_oran": 0.8888888888888888
     }
   },
   "unet_kp_gercek_v1": {
     "val": {
       "kare": 75,
-      "etiketli_nokta": 663,
-      "bulunan_oran": 0.951734539969834,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.9477611940298507,
       "medyan_hata_px": 0.0,
-      "PCK@5px": 0.8868778280542986,
-      "PCK@10px": 0.9260935143288085,
-      "PCK@20px": 0.9366515837104072,
+      "PCK@5px": 0.8746268656716418,
+      "PCK@10px": 0.9149253731343283,
+      "PCK@20px": 0.926865671641791,
       "homografi_kare": 60,
       "homografi_kurulan_oran": 0.9666666666666667,
       "metre_hata_medyan": 0.20019470945139645,
@@ -79,17 +92,30 @@
       "homografi_kurulan_oran": 0.8947368421052632,
       "metre_hata_medyan": 0.21950754615872164,
       "basari_1m_oran": 0.868421052631579
+    },
+    "test_yeni": {
+      "kare": 25,
+      "etiketli_nokta": 175,
+      "bulunan_oran": 0.96,
+      "medyan_hata_px": 2.3314260397723356,
+      "PCK@5px": 0.76,
+      "PCK@10px": 0.9085714285714286,
+      "PCK@20px": 0.9428571428571428,
+      "homografi_kare": 18,
+      "homografi_kurulan_oran": 0.9444444444444444,
+      "metre_hata_medyan": 0.24622192076053823,
+      "basari_1m_oran": 0.9444444444444444
     }
   },
   "unet_kp_v2": {
     "val": {
       "kare": 75,
-      "etiketli_nokta": 663,
-      "bulunan_oran": 0.947209653092006,
-      "medyan_hata_px": 0.9067647005823796,
-      "PCK@5px": 0.8763197586726998,
-      "PCK@10px": 0.918552036199095,
-      "PCK@20px": 0.9321266968325792,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.9417910447761194,
+      "medyan_hata_px": 0.9285592184789129,
+      "PCK@5px": 0.8641791044776119,
+      "PCK@10px": 0.9074626865671642,
+      "PCK@20px": 0.9223880597014925,
       "homografi_kare": 60,
       "homografi_kurulan_oran": 0.9666666666666667,
       "metre_hata_medyan": 0.2170078491234532,
@@ -120,6 +146,19 @@
       "homografi_kurulan_oran": 0.8947368421052632,
       "metre_hata_medyan": 0.21536541061717174,
       "basari_1m_oran": 0.868421052631579
+    },
+    "test_yeni": {
+      "kare": 25,
+      "etiketli_nokta": 175,
+      "bulunan_oran": 0.9542857142857143,
+      "medyan_hata_px": 2.3560796062761957,
+      "PCK@5px": 0.7428571428571429,
+      "PCK@10px": 0.8914285714285715,
+      "PCK@20px": 0.9485714285714286,
+      "homografi_kare": 18,
+      "homografi_kurulan_oran": 0.9444444444444444,
+      "metre_hata_medyan": 0.21983514388524883,
+      "basari_1m_oran": 0.9444444444444444
     }
   },
   "unet_kp_egri_A3": {
@@ -371,12 +410,12 @@
   "unet_kp_egri_Bhep": {
     "val": {
       "kare": 75,
-      "etiketli_nokta": 663,
-      "bulunan_oran": 0.8733031674208145,
-      "medyan_hata_px": 2.4037008503094164,
-      "PCK@5px": 0.7043740573152338,
-      "PCK@10px": 0.8220211161387632,
-      "PCK@20px": 0.8567119155354449,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.8671641791044776,
+      "medyan_hata_px": 2.4331050121193054,
+      "PCK@5px": 0.6970149253731344,
+      "PCK@10px": 0.8134328358208955,
+      "PCK@20px": 0.8477611940298507,
       "homografi_kare": 60,
       "homografi_kurulan_oran": 0.9333333333333333,
       "metre_hata_medyan": 0.27284627922239024,
@@ -407,6 +446,19 @@
       "homografi_kurulan_oran": 0.8157894736842105,
       "metre_hata_medyan": 0.20601043502530625,
       "basari_1m_oran": 0.7894736842105263
+    },
+    "test_yeni": {
+      "kare": 25,
+      "etiketli_nokta": 175,
+      "bulunan_oran": 0.88,
+      "medyan_hata_px": 2.6072447700752184,
+      "PCK@5px": 0.6971428571428572,
+      "PCK@10px": 0.8114285714285714,
+      "PCK@20px": 0.8742857142857143,
+      "homografi_kare": 18,
+      "homografi_kurulan_oran": 0.8888888888888888,
+      "metre_hata_medyan": 0.2243857573216964,
+      "basari_1m_oran": 0.8333333333333334
     }
   },
   "saha_kp_sentetik_v2": {
@@ -453,12 +505,12 @@
   "saha_kp_gercek_v2": {
     "val": {
       "kare": 75,
-      "etiketli_nokta": 663,
-      "bulunan_oran": 0.3046757164404223,
+      "etiketli_nokta": 670,
+      "bulunan_oran": 0.30149253731343284,
       "medyan_hata_px": 13.61575931417762,
-      "PCK@5px": 0.02564102564102564,
-      "PCK@10px": 0.1085972850678733,
-      "PCK@20px": 0.2187028657616893,
+      "PCK@5px": 0.025373134328358207,
+      "PCK@10px": 0.10746268656716418,
+      "PCK@20px": 0.21641791044776118,
       "homografi_kare": 60,
       "homografi_kurulan_oran": 0.35,
       "metre_hata_medyan": 1.8127473379225352,
@@ -489,6 +541,19 @@
       "homografi_kurulan_oran": 0.5,
       "metre_hata_medyan": 0.9718550740243426,
       "basari_1m_oran": 0.2631578947368421
+    },
+    "test_yeni": {
+      "kare": 25,
+      "etiketli_nokta": 175,
+      "bulunan_oran": 0.5257142857142857,
+      "medyan_hata_px": 10.579747063165062,
+      "PCK@5px": 0.10285714285714286,
+      "PCK@10px": 0.2571428571428571,
+      "PCK@20px": 0.38285714285714284,
+      "homografi_kare": 18,
+      "homografi_kurulan_oran": 0.5555555555555556,
+      "metre_hata_medyan": 1.0436218548626952,
+      "basari_1m_oran": 0.2222222222222222
     }
   },
   "unet_kp_v2_t1": {

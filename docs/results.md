@@ -44,6 +44,28 @@ keypoints predicted within k px (missed keypoints count as failures).
 * On test match 04 — labelled *with* model suggestions — the same U-Net scores PCK@10 89.7 % and 100 % of
   frames < 1 m: the measured effect of confirmation bias. Headline numbers therefore use 11 + 12.
 
+### 2.1 Independent replication on a new match
+
+After all development was finished, a further match was added as a held-out test (match 20: Manchester United
+– Manchester City, Premier League 2026/27, beIN SPORTS Türkiye, 1080p). It was used for nothing but this
+evaluation; 25 frames were selected automatically, 18 were annotated **without model suggestions** (7 skipped:
+camera facing the goal), 175 keypoints. `deney_degerlendir.py` group `test_yeni`,
+`guven_araligi.py --grup test_yeni`, `results/guven_araligi_test_yeni.json`.
+
+| Model | PCK@10 [95 % CI] | Median error (m) | Calibration success < 1 m |
+|---|---|---|---|
+| YOLO-pose (synthetic + real) | 25.7 [13.2, 39.5] | 1.04 | 22.2 % |
+| U-Net, real only (143 frames) | 81.1 [69.5, 90.0] | 0.22 | 83.3 % |
+| U-Net, synthetic only | 86.3 [76.8, 93.2] | 0.30 | 88.9 % |
+| U-Net, synthetic + real, v2 | 89.1 [78.3, 96.0] | 0.22 | 94.4 % |
+| **U-Net, synthetic + real, v1** | **90.9 [81.3, 97.0]** | 0.25 | **94.4 %** (17 / 18) |
+
+Paired differences replicate the main findings: U-Net v1 − YOLO-pose +65.1 points [+52.4, +77.4]
+(11 + 12: +65.0); synthetic pre-training at 143 real frames (v2 − B) +8.0 [+2.2, +14.4] (11 + 12: +7.8);
+fine-tuning on real data over synthetic-only +4.6 [+1.3, +8.0]; synthetic-only vs. real-only +5.1
+[−1.8, +11.8], not significant (11 + 12: +0.3). Absolute accuracy is higher than on matches 11 + 12 — this
+match has a standard elevated main camera — but the ranking and all differences are unchanged.
+
 ## 3. Learning curve (research question)
 
 **Questions.** (Q1) Does synthetic pre-training improve landmark detection on real broadcast frames?

@@ -71,6 +71,17 @@ def metrikler(m: np.ndarray) -> dict:
 
 
 def main():
+    import argparse
+    global GRUP, MODELLER, KARSILASTIRMALAR, CIKTI
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--grup", default=GRUP, help="test_onerisiz (11+12) ya da test_yeni (sonradan eklenen maç 20)")
+    a = ap.parse_args()
+    if a.grup != GRUP:
+        GRUP = a.grup
+        MODELLER = ["unet_kp_sentetik_v1", "unet_kp_egri_Bhep", "unet_kp_v2", "unet_kp_gercek_v1", "saha_kp_gercek_v2"]
+        KARSILASTIRMALAR = [("unet_kp_gercek_v1", "saha_kp_gercek_v2"), ("unet_kp_v2", "unet_kp_egri_Bhep"),
+                            ("unet_kp_sentetik_v1", "unet_kp_egri_Bhep"), ("unet_kp_gercek_v1", "unet_kp_sentetik_v1")]
+        CIKTI = PROJE / "results" / f"guven_araligi_{GRUP}.json"
     pairs = ciftler(GRUP)
     veri = {}
     for ad in MODELLER:
