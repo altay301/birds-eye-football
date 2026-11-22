@@ -103,10 +103,16 @@ Smoothing parameters are set in `src/takip.py`. Stability measurement: `python -
 
 ### Web interface
 
-* **Match highlight → bird's-eye video**: choose a video from `data/raw_videos` or upload one, set start
-  and duration (≤ 300 s), keypoint model, detector, processed fps and output layout (side by side or map only).
-* **Single frame**: pick a labelled val/test frame (the true error in metres is shown) or upload any
-  image; compare keypoint models live; adjust the keypoint confidence threshold.
+The demo (English UI, black / white / pink theme) has two tabs:
+
+* **Match highlights → bird's-eye video**: choose a match (matches never seen in training are listed first)
+  or upload a video, set start, duration (≤ 300 s) and output layout (side by side or map only). Off-pitch
+  shots are always cut and the ball is not drawn. Models, processed fps and smoothing are under
+  *Advanced settings*.
+* **Single frame · measured accuracy**: pick a hand-annotated frame from a validation/test match (the
+  calibration error in metres is shown) or upload any image; compare models under *Advanced settings*.
+
+The command-line options above remain available for experiments (e.g. `--top-goster`, `--kirpma`).
 
 ## Glossary of Turkish identifiers
 

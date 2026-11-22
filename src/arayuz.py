@@ -1,21 +1,20 @@
 """
-arayuz.py — Projenin tarayıcıda çalışan demo arayüzü (Gradio)
-=============================================================
+arayuz.py — Projenin tarayıcıda çalışan demo arayüzü (Gradio, İngilizce metinler)
+================================================================================
 
 İki sekme:
-  * Maç özeti → kuş bakışı video (sistem.video_isle): video karelere ayrılır, her kare işlenir,
-     sonuç tarayıcıda oynayan bir videoya yazılır (results\\sistem\\arayuz\\).
-  * Tek kare: aşağıdaki adımlar + elle etiketli karelerde gerçek hata ölçümü.
+  * Match highlights → bird's-eye video (sistem.video_isle): video karelere ayrılır, her kare işlenir,
+     sonuç tarayıcıda oynayan bir videoya yazılır (results\\sistem\\arayuz\\). Saha görünmeyen sahneler
+     her zaman kırpılır, top haritada gösterilmez (projenin amacı oyuncu konumları).
+  * Single frame: aşağıdaki adımlar + elle etiketli karelerde gerçek hata ölçümü.
 
 Bir yayın karesi seç (hazır listeden ya da kendi görüntünü yükle) → sistem:
     1) saha keypoint modeli (U-Net / YOLO-pose) → saha noktaları
     2) RANSAC homografi → hatalı noktaları ayıklar
-    3) YOLO → oyuncular ve top, forma rengi → takımlar
+    3) YOLO → oyuncular, forma rengi → takımlar
     4) ayak noktaları × homografi → kuş bakışı mini harita
 
-Hazır listedeki kareler ELLE ETİKETLİ olduğu için, modelin homografisinin
-gerçekte kaç metre şaştığı da gösterilir (elle tıklanan noktalar sahaya taşınıp
-gerçek konumlarıyla karşılaştırılır).
+Renk paleti: siyah / beyaz / pembe (TEMA + CSS aşağıda).
 
 Kullanım:  .venv\\Scripts\\python.exe -X utf8 src\\arayuz.py
            → tarayıcıda http://127.0.0.1:7860
@@ -42,14 +41,14 @@ BOLME = json.loads((PROJE / "data" / "bolme.json").read_text(encoding="utf-8"))
 VIDEO_CIKTI = PROJE / "results" / "sistem" / "arayuz"
 
 SAHA_MODELLERI = {
-    "U-Net, gerçek + sentetik (en iyi) — unet_kp_gercek_v1": "unet_kp_gercek_v1.pt",
-    "U-Net v2 — unet_kp_v2": "unet_kp_v2.pt",
-    "U-Net, sadece sentetik — unet_kp_sentetik_v1": "unet_kp_sentetik_v1.pt",
-    "U-Net, sentetiksiz (B, 143 kare) — unet_kp_egri_Bhep": "unet_kp_egri_Bhep.pt",
-    "YOLO-pose, ince ayarlı — saha_kp_gercek_v2": "saha_kp_gercek_v2.pt",
+    "U-Net · synthetic + real (best)": "unet_kp_gercek_v1.pt",
+    "U-Net · synthetic + real, v2": "unet_kp_v2.pt",
+    "U-Net · synthetic only": "unet_kp_sentetik_v1.pt",
+    "U-Net · real only": "unet_kp_egri_Bhep.pt",
+    "YOLOv8-pose · fine-tuned (baseline)": "saha_kp_gercek_v2.pt",
 }
-OYUNCU_MODELLERI = {"Kendi modelimiz (oyuncu/kaleci/hakem/top)": "tespit_futbol_v3_1536.pt",
-                    "Hazır YOLOv8m (COCO)": "yolov8m.pt", "Hazır YOLOv8n (COCO, hızlı)": "yolov8n.pt"}
+OYUNCU_MODELLERI = {"Fine-tuned YOLOv8m · player / goalkeeper / referee": "tespit_futbol_v3_1536.pt",
+                    "YOLOv8m · COCO (baseline)": "yolov8m.pt", "YOLOv8n · COCO (fast)": "yolov8n.pt"}
 OYUNCU_MODELLERI = {k: v for k, v in OYUNCU_MODELLERI.items() if (PROJE / "models" / v).exists()}
 _onbellek: dict = {}
 
@@ -62,18 +61,34 @@ def saha_modeli(ad: str, esik: float):
     return _onbellek[anahtar]
 
 
+def mac_adlari() -> dict[str, str]:
+    """kaynaklar.csv: dosya adı (uzantısız) → 'Ev – Deplasman'."""
+    yol = PROJE / "data" / "raw_videos" / "kaynaklar.csv"
+    if not yol.exists():
+        return {}
+    out = {}
+    for satir in yol.read_text(encoding="utf-8").splitlines()[1:]:
+        s = satir.split(";")
+        if len(s) > 3:
+            out[Path(s[0]).stem] = s[1].replace(" - ", " – ")
+    return out
+
+
+ADLAR = mac_adlari()
+
+
 def hazir_kareler() -> dict[str, Path]:
-    """Elle etiketli test/val kareleri: 'görünen ad' → görüntü yolu."""
+    """Elle etiketli, eğitimde görülmemiş (test/val) kareler: 'görünen ad' → görüntü yolu."""
     sonuc = {}
-    for kume in ("test", "val"):
-        for e in sorted(ETIKET.glob("*/*.json")):
-            if BOLME.get(e.parent.name) != kume:
-                continue
-            d = json.loads(e.read_text(encoding="utf-8"))
-            g = KARELER / e.parent.name / f"{e.stem}.jpg"
-            if d.get("durum") == "etiketli" and len(d["noktalar"]) >= 4 and g.exists():
-                zaman = e.stem.rsplit("_", 1)[-1]
-                sonuc[f"{kume} · maç {e.parent.name[:2]} · {zaman.removesuffix('.0')}"] = g
+    for e in sorted(ETIKET.glob("*/*.json")):
+        if BOLME.get(e.parent.name) not in ("test", "val"):
+            continue
+        d = json.loads(e.read_text(encoding="utf-8"))
+        g = KARELER / e.parent.name / f"{e.stem}.jpg"
+        if d.get("durum") == "etiketli" and len(d["noktalar"]) >= 4 and g.exists():
+            sn = float(e.stem.rsplit("_t", 1)[-1])
+            ad = ADLAR.get(e.parent.name, f"Match {e.parent.name[:2]}")
+            sonuc[f"{ad} · {int(sn // 60)}:{int(sn % 60):02d}"] = g
     return sonuc
 
 
@@ -81,14 +96,14 @@ HAZIR = hazir_kareler()
 
 
 def noktalari_ciz(img: np.ndarray, noktalar: list[dict], kal) -> np.ndarray:
-    """Model noktaları: yeşil = RANSAC kabul etti, kırmızı = attı."""
+    """Model noktaları: pembe = RANSAC kabul etti, gri = attı."""
     out = img.copy()
     s = out.shape[1] / 1280                       # büyük görüntüde yazılar okunur kalsın
     r, f, k = int(9 * s), 0.8 * s, max(1, int(2 * s))
     ic = kal.icerdeki if kal is not None and kal.icerdeki is not None else np.ones(len(noktalar), bool)
     for n, kabul in zip(noktalar, ic):
         p = tuple(np.round(n["px"]).astype(int))
-        renk = (0, 200, 0) if kabul else (0, 0, 255)
+        renk = (135, 45, 255) if kabul else (150, 150, 150)       # BGR: pembe / gri
         cv2.circle(out, p, r, renk, -1, cv2.LINE_AA)
         cv2.circle(out, p, r, (0, 0, 0), k, cv2.LINE_AA)
         yazi = f"{n['id']} ({n['guven']:.2f})"
@@ -124,7 +139,7 @@ def calistir(hazir_ad, yuklenen, model_ad, oyuncu_ad, esik):
         img = oku(g)
         etiket_yolu = ETIKET / g.parent.name / f"{g.stem}.json"
     else:
-        return None, None, "Bir kare seç ya da görüntü yükle."
+        return None, None, "Select a frame or upload an image."
 
     model = saha_modeli(model_ad, round(float(esik), 2))
     noktalar = model.tahmin(img)
@@ -132,9 +147,9 @@ def calistir(hazir_ad, yuklenen, model_ad, oyuncu_ad, esik):
     nokta_gorsel = cv2.cvtColor(noktalari_ciz(img, noktalar, kal), cv2.COLOR_BGR2RGB)
 
     if kal is None:
-        return nokta_gorsel, None, (f"### Homografi kurulamadı\n"
-                                    f"Model {len(noktalar)} nokta buldu; en az 4 tutarlı nokta gerekir. "
-                                    "Genelde yakın plan, tribün ya da çok az çizgi görünen karelerde olur.")
+        return nokta_gorsel, None, ("### Not a main-camera view\n"
+                                    "Too few pitch markings are visible to calibrate this frame "
+                                    "(typically a close-up, a crowd shot or a replay). Try another frame.")
 
     birlesik, sahadakiler, kal = sonuc_uret(img, noktalar, kal=kal, yolo=OYUNCU_MODELLERI[oyuncu_ad])
     ic = int(kal.icerdeki.sum()) if kal.icerdeki is not None else len(noktalar)
@@ -142,40 +157,19 @@ def calistir(hazir_ad, yuklenen, model_ad, oyuncu_ad, esik):
 
     satirlar = [
         "| | |", "|---|---|",
-        f"| Modelin bulduğu saha noktası | **{len(noktalar)}** / 35 |",
-        f"| RANSAC'ın kabul ettiği | **{ic}** (kırmızılar atıldı) |",
-        f"| Homografi iç hatası | {kal.hata_metre:.2f} m · {kal.hata_piksel:.1f} px |",
-        f"| Sahadaki oyuncu / hakem | **{oyuncu}** |",
+        f"| Pitch landmarks detected | **{len(noktalar)}** of 35 |",
+        f"| Used for calibration (RANSAC) | **{ic}** |",
+        f"| People on the pitch | **{oyuncu}** |",
     ]
     if etiket_yolu is not None:
         h = gercek_hata(etiket_yolu, kal.H)
         if h is not None:
-            ort, en, n = h
-            durum = "başarılı (< 1 m)" if ort < 1 else "başarısız (≥ 1 m)"
-            satirlar.append(f"| **Gerçek hata** (elle etiketli {n} noktaya göre) | **{ort:.2f} m** "
-                            f"(en çok {en:.2f} m) — {durum} |")
-    else:
-        satirlar.append("| Gerçek hata | yüklenen görüntünün elle etiketi yok → ölçülemez |")
-
+            satirlar.append(f"| Calibration error vs. manual annotation | **{h[0]:.2f} m** (mean over {h[2]} points) |")
     return nokta_gorsel, cv2.cvtColor(birlesik, cv2.COLOR_BGR2RGB), "\n".join(satirlar)
-
-
-def mac_adlari() -> dict[str, str]:
-    """kaynaklar.csv: dosya adı → 'Ev – Deplasman (turnuva)'."""
-    yol = PROJE / "data" / "raw_videos" / "kaynaklar.csv"
-    if not yol.exists():
-        return {}
-    out = {}
-    for satir in yol.read_text(encoding="utf-8").splitlines()[1:]:
-        s = satir.split(";")
-        if len(s) > 3:
-            out[Path(s[0]).stem] = f"{s[1].replace(' - ', ' – ')} ({s[3].rstrip('?')})"
-    return out
 
 
 def video_sureleri() -> dict[str, Path]:
     """data\\raw_videos'taki maç özetleri: 'görünen ad' → yol. Eğitimde görülmemiş maçlar önce."""
-    adlar = mac_adlari()
     gorulmemis, egitim = {}, {}
     for v in sorted((PROJE / "data" / "raw_videos").glob("*.mp4")):
         if v.stem.startswith("14_"):            # derleme, tek maç değil
@@ -183,9 +177,9 @@ def video_sureleri() -> dict[str, Path]:
         cap = cv2.VideoCapture(str(v))
         sn = cap.get(cv2.CAP_PROP_FRAME_COUNT) / (cap.get(cv2.CAP_PROP_FPS) or 25)
         cap.release()
-        ad = f"{adlar.get(v.stem, 'maç ' + v.stem[:2])} · {int(sn // 60)}:{int(sn % 60):02d}"
+        ad = f"{ADLAR.get(v.stem, 'Match ' + v.stem[:2])} · {int(sn // 60)}:{int(sn % 60):02d}"
         if BOLME.get(v.stem) in ("test", "val"):
-            gorulmemis[f"{ad} · eğitimde görülmedi"] = v
+            gorulmemis[f"{ad} · unseen in training"] = v
         else:
             egitim[ad] = v
     return {**gorulmemis, **egitim}
@@ -199,89 +193,133 @@ def video_calistir(hazir_ad, yuklenen, bas, sure, model_ad, oyuncu_ad, hedef_fps
     from sistem import video_isle
     yol = Path(yuklenen) if yuklenen else VIDEOLAR.get(hazir_ad)
     if yol is None:
-        return None, "Bir video seç ya da yükle."
-    ilerleme(0, desc="Modeller yükleniyor…")
+        return None, "Select a match or upload a video."
+    ilerleme(0, desc="Loading models…")
     model = saha_modeli(model_ad, 0.5)
     cikti = VIDEO_CIKTI / f"{yol.stem[:40]}_{int(bas)}s_{time.strftime('%H%M%S')}.mp4"
     s = video_isle(model, yol, cikti, bas=float(bas), sure=float(sure), hedef_fps=float(hedef_fps),
-                   yolo=OYUNCU_MODELLERI[oyuncu_ad], sadece_harita=gorunum.startswith("Sadece"),
+                   yolo=OYUNCU_MODELLERI[oyuncu_ad], sadece_harita=gorunum.startswith("Bird"),
                    yumusat=bool(yumusat), top_goster=False, kirp=True,
                    ilerleme=lambda o, m: ilerleme(o, desc=m))
     if not s["yol"]:
-        return None, ("Bu aralıkta saha görünen bir oyun sahnesi yok; başka bir başlangıç saniyesi dene."
-                      if s["islenen"] else "Video okunamadı ya da seçilen aralık videonun dışında.")
+        return None, ("No main-camera play in this interval — try another start time."
+                      if s["islenen"] else "The video could not be read, or the interval lies outside it.")
     ozet = "\n".join([
         "| | |", "|---|---|",
-        f"| İşlenen video | {s['video_sn']:.0f} sn ({s['islenen']} kare) |",
-        f"| Kuş bakışı video | **{s['cikti_sn']:.0f} sn** oyun görüntüsü |",
-        f"| Algılanan sahne | {s['kesme'] + 1} |",
-        f"| İşlem süresi | {s['sure_sn']:.0f} sn |",
+        f"| Input | {s['video_sn']:.0f} s · {s['islenen']} frames analysed |",
+        f"| Bird's-eye output | **{s['cikti_sn']:.0f} s** of live play |",
+        f"| Camera shots | {s['kesme'] + 1} |",
+        f"| Processing time | {s['sure_sn']:.0f} s |",
     ])
     return s["yol"], ozet
 
 
-ACIKLAMA = """
-# Yayın görüntüsünden kuş bakışı oyuncu konumlandırma
-**Saha noktası modeli** sahadaki 35 referans noktasından görünenleri bulur →
-**RANSAC homografi** kamera görüntüsünü saha planına bağlar → **YOLO** oyuncuları bulur →
-oyuncuların **ayak noktaları** kuş bakışı haritaya taşınır.
+# --- Görünüm: siyah / beyaz / pembe ----------------------------------------------------------------
+PEMBE, PEMBE_ACIK, PEMBE_KOYU = "#ff2e88", "#ff5ca3", "#d81b6a"
+SIYAH, PANEL, CIZGI, METIN, SOLUK = "#000000", "#0d0d0d", "#2a2a2a", "#ffffff", "#a3a3a3"
+
+_t = dict(
+    body_background_fill=SIYAH, body_text_color=METIN, body_text_color_subdued=SOLUK,
+    background_fill_primary=SIYAH, background_fill_secondary=PANEL,
+    block_background_fill=PANEL, block_border_color=CIZGI, block_label_background_fill=PANEL,
+    block_label_text_color=SOLUK, block_title_text_color=METIN, border_color_primary=CIZGI,
+    border_color_accent=PEMBE, color_accent=PEMBE, color_accent_soft="#2a0a18",
+    input_background_fill="#141414", input_border_color=CIZGI, input_border_color_focus=PEMBE,
+    button_primary_background_fill=PEMBE, button_primary_background_fill_hover=PEMBE_ACIK,
+    button_primary_text_color=METIN, button_primary_border_color=PEMBE,
+    button_secondary_background_fill="#1a1a1a", button_secondary_background_fill_hover="#262626",
+    button_secondary_text_color=METIN, button_secondary_border_color=CIZGI,
+    slider_color=PEMBE, checkbox_background_color_selected=PEMBE, checkbox_border_color_selected=PEMBE,
+    link_text_color=PEMBE, link_text_color_hover=PEMBE_ACIK, link_text_color_visited=PEMBE_KOYU,
+    loader_color=PEMBE, table_border_color=CIZGI, table_even_background_fill=PANEL,
+    table_odd_background_fill="#121212",
+)
+_set_ok = set(__import__("inspect").signature(gr.themes.Base.set).parameters)
+TEMA = gr.themes.Base(primary_hue=gr.themes.colors.pink, neutral_hue=gr.themes.colors.neutral,
+                      font=[gr.themes.GoogleFont("Inter"), "system-ui", "sans-serif"]).set(
+    **_t, **{f"{k}_dark": v for k, v in _t.items() if f"{k}_dark" in _set_ok})   # açık/koyu modda aynı
+
+CSS = f"""
+.gradio-container {{ max-width: 1280px !important; margin: 0 auto; }}
+footer {{ display: none !important; }}
+#baslik h1 {{ font-size: 2.1rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.2rem; }}
+#baslik h1 span {{ color: {PEMBE}; }}
+#baslik p {{ color: {SOLUK}; font-size: 1.02rem; }}
+.tab-nav button.selected, button[role="tab"][aria-selected="true"] {{
+    color: {PEMBE} !important; border-color: {PEMBE} !important; }}
+.boru {{ display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 4px; }}
+.boru span {{ border: 1px solid {CIZGI}; border-radius: 999px; padding: 4px 12px; font-size: 0.88rem;
+             color: {METIN}; background: {PANEL}; }}
+.boru span b {{ color: {PEMBE}; }}
 """
 
-with gr.Blocks(title="Kuş Bakışı Futbol") as demo:
-    gr.Markdown(ACIKLAMA)
-    with gr.Tab("Maç özeti → kuş bakışı video"):
-        gr.Markdown("Bir maç özeti seç ya da kendi videonu yükle. Her karede saha ve oyuncular bulunur, takımlar "
-                    "forma renginden ayrılır, sonuç akıcı bir **kuş bakışı video** olarak oynatılır; yakın plan, "
-                    "tribün ve tekrar görüntüleri otomatik olarak çıkarılır. 1 dakikalık video ≈ 1,5–2 dakikada "
-                    "işlenir.")
+BASLIK = """
+<div id="baslik">
+<h1>Bird's-Eye <span>Football</span></h1>
+<p>Player positions on a top-down pitch map, straight from a single broadcast camera.</p>
+<div class="boru">
+  <span><b>1</b> Pitch landmarks · U-Net</span>
+  <span><b>2</b> Camera calibration · RANSAC homography</span>
+  <span><b>3</b> Players &amp; roles · YOLOv8</span>
+  <span><b>4</b> Teams · kit colour</span>
+  <span><b>5</b> Foot point → pitch map</span>
+</div>
+</div>
+"""
+
+with gr.Blocks(title="Bird's-Eye Football") as demo:
+    gr.HTML(BASLIK)
+    with gr.Tab("Match highlights → bird's-eye video"):
+        gr.Markdown("Choose a match or upload your own highlights. Every frame is calibrated, players are "
+                    "detected and split into teams, and the result plays as a smooth **bird's-eye video**. "
+                    "Close-ups, crowd shots and replays are removed automatically. "
+                    "One minute of video takes about 1.5–2 minutes to process.")
         with gr.Row():
             with gr.Column(scale=1):
                 v_hazir = gr.Dropdown(list(VIDEOLAR), value=next((k for k in VIDEOLAR if "Manchester" in k),
                                                                   next(iter(VIDEOLAR), None)),
-                                      label="Hazır maç özeti")
-                v_yuklenen = gr.Video(label="…ya da kendi videonu yükle (yüklersen bu kullanılır)", height=180)
+                                      label="Match")
+                v_yuklenen = gr.Video(label="…or upload a video (used if provided)", height=180)
                 with gr.Row():
-                    v_bas = gr.Number(value=60, minimum=0, label="Başlangıç (sn)")
-                    v_sure = gr.Slider(5, 300, value=30, step=5, label="Süre (sn)")
-                v_gorunum = gr.Radio(["Yan yana (görüntü + harita)", "Sadece kuş bakışı harita"],
-                                     value="Yan yana (görüntü + harita)", label="Çıktı")
-                with gr.Accordion("Gelişmiş ayarlar", open=False):
+                    v_bas = gr.Number(value=60, minimum=0, label="Start (s)")
+                    v_sure = gr.Slider(5, 300, value=30, step=5, label="Duration (s)")
+                v_gorunum = gr.Radio(["Side by side (broadcast + map)", "Bird's-eye map only"],
+                                     value="Side by side (broadcast + map)", label="Output")
+                with gr.Accordion("Advanced settings", open=False):
                     v_model = gr.Dropdown(list(SAHA_MODELLERI), value=next(iter(SAHA_MODELLERI)),
-                                          label="Saha noktası modeli")
+                                          label="Pitch landmark model")
                     v_oyuncu = gr.Radio(list(OYUNCU_MODELLERI), value=next(iter(OYUNCU_MODELLERI)),
-                                        label="Oyuncu tespit modeli")
-                    v_fps = gr.Slider(4, 25, value=12, step=1, label="Saniyede işlenecek kare")
-                    v_yumusat = gr.Checkbox(value=True, label="Oyuncu takibi ve zamansal yumuşatma")
-                v_calis = gr.Button("Videoyu işle", variant="primary")
+                                        label="Player detector")
+                    v_fps = gr.Slider(4, 25, value=12, step=1, label="Frames analysed per second")
+                    v_yumusat = gr.Checkbox(value=True, label="Player tracking and temporal smoothing")
+                v_calis = gr.Button("Generate bird's-eye video", variant="primary", size="lg")
                 v_ozet = gr.Markdown()
             with gr.Column(scale=2):
-                v_sonuc = gr.Video(label="Kuş bakışı video", autoplay=True)
+                v_sonuc = gr.Video(label="Bird's-eye video", autoplay=True)
         v_calis.click(video_calistir, [v_hazir, v_yuklenen, v_bas, v_sure, v_model, v_oyuncu, v_fps, v_gorunum,
                                        v_yumusat], [v_sonuc, v_ozet])
 
-    with gr.Tab("Tek kare (gerçek hata ölçümüyle)"):
-        gr.Markdown("Hazır listedeki test / val kareleri eğitimde **hiç görülmedi** ve elle etiketli olduğu için "
-                    "gerçek hata (metre) de hesaplanır. Test 11 ve 12 model önerisi olmadan etiketlendi "
-                    "(en dürüst ölçüm).")
+    with gr.Tab("Single frame · measured accuracy"):
+        gr.Markdown("The listed frames come from matches **never seen during training** and were annotated by "
+                    "hand, so the calibration error can be measured in metres. Pink: landmarks used for "
+                    "calibration; grey: rejected by RANSAC.")
         with gr.Row():
             with gr.Column(scale=1):
-                hazir = gr.Dropdown(list(HAZIR), value=next(iter(HAZIR), None), label="Hazır kare (elle etiketli)")
-                yuklenen = gr.Image(label="…ya da kendi görüntünü yükle (yüklersen bu kullanılır)", type="numpy",
-                                    height=200)
-                with gr.Accordion("Gelişmiş ayarlar (model karşılaştırma)", open=False):
+                hazir = gr.Dropdown(list(HAZIR), value=next(iter(HAZIR), None), label="Annotated frame")
+                yuklenen = gr.Image(label="…or upload an image (used if provided)", type="numpy", height=200)
+                with gr.Accordion("Advanced settings · model comparison", open=False):
                     model_ad = gr.Dropdown(list(SAHA_MODELLERI), value=next(iter(SAHA_MODELLERI)),
-                                           label="Saha noktası modeli")
+                                           label="Pitch landmark model")
                     oyuncu_ad = gr.Radio(list(OYUNCU_MODELLERI), value=next(iter(OYUNCU_MODELLERI)),
-                                         label="Oyuncu tespit modeli")
-                    esik = gr.Slider(0.1, 0.9, value=0.5, step=0.05, label="Nokta güven eşiği")
+                                         label="Player detector")
+                    esik = gr.Slider(0.1, 0.9, value=0.5, step=0.05, label="Landmark confidence threshold")
                 with gr.Row():
-                    rastgele = gr.Button("Rastgele kare")
-                    calis = gr.Button("Çalıştır", variant="primary")
+                    rastgele = gr.Button("Random frame")
+                    calis = gr.Button("Run", variant="primary")
                 ozet = gr.Markdown()
             with gr.Column(scale=2):
-                nokta_gorsel = gr.Image(label="1) Modelin bulduğu saha noktaları (numara + güven; "
-                                              "yeşil = RANSAC kabul, kırmızı = atıldı)")
-                sonuc = gr.Image(label="2) Saha çizgileri + oyuncular (sol) → kuş bakışı harita (sağ)")
+                nokta_gorsel = gr.Image(label="1 · Detected pitch landmarks (id + confidence)")
+                sonuc = gr.Image(label="2 · Calibrated pitch lines and players → bird's-eye map")
 
         girdiler = [hazir, yuklenen, model_ad, oyuncu_ad, esik]
         ciktilar = [nokta_gorsel, sonuc, ozet]
@@ -293,4 +331,4 @@ with gr.Blocks(title="Kuş Bakışı Futbol") as demo:
 if __name__ == "__main__":
     import sys
     demo.launch(server_name="127.0.0.1", server_port=7860, inbrowser="--tarayici-acma" not in sys.argv,
-                allowed_paths=[str(VIDEO_CIKTI)])
+                allowed_paths=[str(VIDEO_CIKTI)], theme=TEMA, css=CSS)

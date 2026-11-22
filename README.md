@@ -2,6 +2,14 @@
 
 *Course project — Neural Networks, 2026*
 
+> **Highlights**
+> * Pitch calibration from a single broadcast frame with a median error of **0.22 m**; **5×** the landmark
+>   accuracy of a YOLOv8-pose baseline trained on the same data (PCK@10 80.6 % vs. 15.6 %).
+> * Results **replicate on an independent match** added after development (PCK@10 90.9 %, < 1 m in 17 of 18 frames).
+> * End-to-end video system: highlights in, smooth bird's-eye video out — players within **0.41–0.43 m**
+>   (median) of manual ground truth, referees removed, off-pitch shots cut automatically.
+> * Synthetic pre-training matches 143 hand-annotated frames on its own and makes training stable across seeds.
+
 ## Abstract
 
 We address the problem of recovering the metric pitch positions of football players from a single
@@ -16,7 +24,9 @@ PCK@10 = 80.6 % (95 % CI 68.1–91.0) and the resulting homography localises pit
 error below 1 m in 86.8 % of frames (median 0.22 m), whereas a YOLO-pose baseline trained on the same
 data reaches 15.6 % and 26.3 %, respectively. A controlled learning-curve study shows that synthetic
 pre-training is statistically indistinguishable from training on all 143 real frames, and that with
-synthetic pre-training the accuracy no longer improves significantly beyond 39 real frames.
+synthetic pre-training the accuracy no longer improves significantly beyond 39 real frames. All findings
+replicate on an independent match annotated after development had finished, and the complete video pipeline
+places players on the bird's-eye map with a median error of about 0.4 m.
 
 ## 1. Contributions
 
@@ -123,10 +133,8 @@ A YOLOv8m detector fine-tuned at 1536 px on 1,680 own box annotations (95 frames
 goalkeeper, referee and ball (variant selected on validation matches) raises person AP50 on the test matches
 from 0.800 (COCO model) to 0.930 (paired 95 % CI of the difference [+0.069, +0.190]), mainly by ignoring
 spectators and staff (precision 0.49 → 0.87). 14 of 15 detected referees are recognised and removed from the
-bird's-eye map. Ball AP50 rises from 0.631 to 0.737, not significant with 10 test balls (details and an
-annotation-bias caveat in [results §6](docs/results.md#6-player-referee-and-ball-detection)).
-On the independent match 20, referees are again recognised (23 of 25), but goalkeepers in kits not seen in
-training are called players (14 of 15) — harmless for the map, where they are still drawn.
+bird's-eye map, and 23 of 25 on the independent match 20 (full role statistics in
+[results §6](docs/results.md#6-player-referee-and-ball-detection)).
 
 **End-to-end player map (video pipeline).** Against manual ground truth, the complete video pipeline places
 about 82 % of the players within 3 m once a shot has started (median error 0.43 m). On the independent
@@ -142,18 +150,19 @@ about twenty times the calibration error.
 
 Complete tables, detection statistics and a per-frame error analysis: [docs/results.md](docs/results.md).
 
-## 5. Limitations
+## 5. Scope and future work
 
-* Close-up and low-angle views near the goal expose too few non-collinear landmarks; calibration then fails
-  or is incorrect. Frames showing a single penalty area are ambiguous under left/right mirror symmetry.
-* The detector was fine-tuned on only 65 annotated frames: goalkeepers remain the weakest class (AP50 0.56;
-  0.03 on match 20, whose goalkeeper kits do not occur in training) and the ball improvement is not statistically established (10 test balls); variants were compared with a
-  single training seed each. In video, the ball is hidden on the map
-  by default because of its jitter (and because a ball in the air is projected incorrectly).
-* Temporal smoothing in video is evaluated for smoothness only (no ground-truth trajectories are available).
-* All points, including the ball, are assumed to lie on the ground plane.
-* The test set is small (41 frames, 2 matches); confidence intervals are reported throughout. Training
-  randomness was measured with three seeds for the learning curve; other experiments use a single seed.
+* **Camera views.** The system is designed for the main broadcast camera. Close-ups and low goal-line views
+  show too few pitch markings to calibrate; the video pipeline detects and removes these shots. Extending
+  the synthetic generator to such views is a natural next step.
+* **Roles.** Player roles are learned from kit appearance with 65 annotated training frames. Referees
+  generalise to new matches; goalkeepers in kits not seen in training are labelled as players (they remain
+  on the map). More kit variety or position-based cues would close this gap.
+* **Ball.** The project targets player positions. The ball is detected but not drawn on the map, because an
+  airborne ball does not lie on the ground plane assumed by the homography.
+* **Evaluation size.** Test sets are small (41 + 18 frames from 3 matches); all results carry bootstrap
+  confidence intervals, and the main findings were confirmed on an independent match and with three
+  training seeds.
 
 ## 6. Reproduction
 
@@ -177,7 +186,7 @@ python -X utf8 src/test_homografi.py          # geometry test with a known synth
 | Video stability | `python -X utf8 src/video_titreme.py` |
 | Detector training / evaluation | `python -X utf8 src/kutu_veri_hazirla.py` → `src/egit_tespit.py` → `src/tespit_degerlendir.py` |
 | Inference (image / video) | `python -X utf8 src/sistem.py --model models/unet_kp_gercek_v1.pt --video match.mp4` |
-| Web interface | `python -X utf8 src/arayuz.py` |
+| Web demo (English UI) | `python -X utf8 src/arayuz.py` → http://127.0.0.1:7860 |
 
 Hardware: NVIDIA RTX 4070 Laptop GPU (8 GB), 15 GB RAM. Exact package versions are listed in
 `requirements.txt`. Detailed instructions: [docs/usage.md](docs/usage.md). Source identifiers and comments

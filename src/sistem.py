@@ -300,7 +300,7 @@ def video_isle(model, video: str | Path, cikti: Path, bas: float = 0, sure: floa
         if ilerleme and (n_islenen % 5 == 0 or n_islenen == n_hedef):
             gecen = time.time() - t0
             kalan = gecen / n_islenen * max(0, n_hedef - n_islenen)
-            ilerleme(min(1.0, n_islenen / n_hedef), f"{n_islenen}/{n_hedef} kare · kalan ~{kalan:.0f} sn")
+            ilerleme(min(1.0, n_islenen / n_hedef), f"{n_islenen}/{n_hedef} frames · ~{kalan:.0f} s left")
     if kirp:
         parcayi_bosalt()
     if yazici:
