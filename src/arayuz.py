@@ -155,17 +155,13 @@ def calistir(hazir_ad, yuklenen, model_ad, oyuncu_ad, esik):
     ic = int(kal.icerdeki.sum()) if kal.icerdeki is not None else len(noktalar)
     oyuncu = sum(t.sinif != "top" for t in sahadakiler)
 
-    satirlar = [
-        "| | |", "|---|---|",
-        f"| Pitch landmarks detected | **{len(noktalar)}** of 35 |",
-        f"| Used for calibration (RANSAC) | **{ic}** |",
-        f"| People on the pitch | **{oyuncu}** |",
-    ]
+    satirlar = [f"**{len(noktalar)}** pitch landmarks · **{ic}** used for calibration",
+                f"**{oyuncu}** people on the pitch"]
     if etiket_yolu is not None:
         h = gercek_hata(etiket_yolu, kal.H)
         if h is not None:
-            satirlar.append(f"| Calibration error vs. manual annotation | **{h[0]:.2f} m** (mean over {h[2]} points) |")
-    return nokta_gorsel, cv2.cvtColor(birlesik, cv2.COLOR_BGR2RGB), "\n".join(satirlar)
+            satirlar.append(f"**{h[0]:.2f} m** calibration error vs. manual annotation")
+    return nokta_gorsel, cv2.cvtColor(birlesik, cv2.COLOR_BGR2RGB), "  \n".join(satirlar)
 
 
 def video_sureleri() -> dict[str, Path]:
@@ -198,18 +194,15 @@ def video_calistir(hazir_ad, yuklenen, bas, sure, model_ad, oyuncu_ad, hedef_fps
     model = saha_modeli(model_ad, 0.5)
     cikti = VIDEO_CIKTI / f"{yol.stem[:40]}_{int(bas)}s_{time.strftime('%H%M%S')}.mp4"
     s = video_isle(model, yol, cikti, bas=float(bas), sure=float(sure), hedef_fps=float(hedef_fps),
-                   yolo=OYUNCU_MODELLERI[oyuncu_ad], sadece_harita=gorunum.startswith("Bird"),
+                   yolo=OYUNCU_MODELLERI[oyuncu_ad], sadece_harita=gorunum.startswith("Map"),
                    yumusat=bool(yumusat), top_goster=False, kirp=True,
                    ilerleme=lambda o, m: ilerleme(o, desc=m))
     if not s["yol"]:
         return None, ("No main-camera play in this interval — try another start time."
                       if s["islenen"] else "The video could not be read, or the interval lies outside it.")
-    ozet = "\n".join([
-        "| | |", "|---|---|",
-        f"| Input | {s['video_sn']:.0f} s · {s['islenen']} frames analysed |",
-        f"| Bird's-eye output | **{s['cikti_sn']:.0f} s** of live play |",
-        f"| Camera shots | {s['kesme'] + 1} |",
-        f"| Processing time | {s['sure_sn']:.0f} s |",
+    ozet = "  \n".join([
+        f"**{s['cikti_sn']:.0f} s** of live play from {s['video_sn']:.0f} s of footage",
+        f"{s['islenen']} frames · {s['kesme'] + 1} camera shots · processed in {s['sure_sn']:.0f} s",
     ])
     return s["yol"], ozet
 
@@ -221,7 +214,8 @@ SIYAH, PANEL, CIZGI, METIN, SOLUK = "#000000", "#0d0d0d", "#2a2a2a", "#ffffff", 
 _t = dict(
     body_background_fill=SIYAH, body_text_color=METIN, body_text_color_subdued=SOLUK,
     background_fill_primary=SIYAH, background_fill_secondary=PANEL,
-    block_background_fill=PANEL, block_border_color=CIZGI, block_label_background_fill=PANEL,
+    block_background_fill=SIYAH, block_border_color="#1c1c1c", block_label_background_fill=SIYAH,
+    block_shadow="none", block_radius="6px", block_border_width="1px",
     block_label_text_color=SOLUK, block_title_text_color=METIN, border_color_primary=CIZGI,
     border_color_accent=PEMBE, color_accent=PEMBE, color_accent_soft="#2a0a18",
     input_background_fill="#141414", input_border_color=CIZGI, input_border_color_focus=PEMBE,
@@ -239,87 +233,74 @@ TEMA = gr.themes.Base(primary_hue=gr.themes.colors.pink, neutral_hue=gr.themes.c
                       font=[gr.themes.GoogleFont("Inter"), "system-ui", "sans-serif"]).set(
     **_t, **{f"{k}_dark": v for k, v in _t.items() if f"{k}_dark" in _set_ok})   # açık/koyu modda aynı
 
+# Minimal: kutular arka planla aynı renkte, ince çizgiler; pembe sadece başlık noktası, sekme ve ana düğmede.
 CSS = f"""
-.gradio-container {{ max-width: 1280px !important; margin: 0 auto; }}
+.gradio-container {{ width: 100% !important; max-width: 1360px !important; margin: 0 auto; }}
+.main {{ max-width: none !important; }}
 footer {{ display: none !important; }}
-#baslik h1 {{ font-size: 2.1rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.2rem; }}
+.block, .form, .gr-group {{ background: transparent !important; box-shadow: none !important; }}
+.block {{ border-color: #1c1c1c !important; }}
+#baslik {{ display: flex; align-items: baseline; gap: 14px; margin: 4px 0 2px; }}
+#baslik h1 {{ font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; margin: 0; }}
 #baslik h1 span {{ color: {PEMBE}; }}
-#baslik p {{ color: {SOLUK}; font-size: 1.02rem; }}
+#baslik p {{ color: {SOLUK}; font-size: 0.9rem; margin: 0; }}
+.tab-nav button, button[role="tab"] {{ font-size: 0.9rem !important; color: {SOLUK} !important; }}
 .tab-nav button.selected, button[role="tab"][aria-selected="true"] {{
-    color: {PEMBE} !important; border-color: {PEMBE} !important; }}
-.boru {{ display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 4px; }}
-.boru span {{ border: 1px solid {CIZGI}; border-radius: 999px; padding: 4px 12px; font-size: 0.88rem;
-             color: {METIN}; background: {PANEL}; }}
-.boru span b {{ color: {PEMBE}; }}
+    color: {METIN} !important; border-color: {PEMBE} !important; }}
+.ozet {{ font-size: 0.88rem; color: {SOLUK}; }}
+.ozet strong {{ color: {METIN}; }}
 """
 
 BASLIK = """
-<div id="baslik">
-<h1>Bird's-Eye <span>Football</span></h1>
-<p>Player positions on a top-down pitch map, straight from a single broadcast camera.</p>
-<div class="boru">
-  <span><b>1</b> Pitch landmarks · U-Net</span>
-  <span><b>2</b> Camera calibration · RANSAC homography</span>
-  <span><b>3</b> Players &amp; roles · YOLOv8</span>
-  <span><b>4</b> Teams · kit colour</span>
-  <span><b>5</b> Foot point → pitch map</span>
-</div>
-</div>
+<div id="baslik"><h1>Bird's-Eye Football<span>.</span></h1>
+<p>Broadcast footage → top-down player map</p></div>
 """
 
 with gr.Blocks(title="Bird's-Eye Football") as demo:
     gr.HTML(BASLIK)
-    with gr.Tab("Match highlights → bird's-eye video"):
-        gr.Markdown("Choose a match or upload your own highlights. Every frame is calibrated, players are "
-                    "detected and split into teams, and the result plays as a smooth **bird's-eye video**. "
-                    "Close-ups, crowd shots and replays are removed automatically. "
-                    "One minute of video takes about 1.5–2 minutes to process.")
+    with gr.Tab("Video"):
         with gr.Row():
-            with gr.Column(scale=1):
+            with gr.Column(scale=1, min_width=300):
                 v_hazir = gr.Dropdown(list(VIDEOLAR), value=next((k for k in VIDEOLAR if "Manchester" in k),
                                                                   next(iter(VIDEOLAR), None)),
                                       label="Match")
-                v_yuklenen = gr.Video(label="…or upload a video (used if provided)", height=180)
                 with gr.Row():
                     v_bas = gr.Number(value=60, minimum=0, label="Start (s)")
-                    v_sure = gr.Slider(5, 300, value=30, step=5, label="Duration (s)")
-                v_gorunum = gr.Radio(["Side by side (broadcast + map)", "Bird's-eye map only"],
-                                     value="Side by side (broadcast + map)", label="Output")
-                with gr.Accordion("Advanced settings", open=False):
+                    v_sure = gr.Number(value=30, minimum=5, maximum=300, label="Duration (s)")
+                v_calis = gr.Button("Generate", variant="primary")
+                with gr.Accordion("More options", open=False):
+                    v_yuklenen = gr.Video(label="Upload your own video", height=140)
+                    v_gorunum = gr.Radio(["Side by side", "Map only"], value="Side by side", label="Layout")
                     v_model = gr.Dropdown(list(SAHA_MODELLERI), value=next(iter(SAHA_MODELLERI)),
                                           label="Pitch landmark model")
                     v_oyuncu = gr.Radio(list(OYUNCU_MODELLERI), value=next(iter(OYUNCU_MODELLERI)),
                                         label="Player detector")
                     v_fps = gr.Slider(4, 25, value=12, step=1, label="Frames analysed per second")
                     v_yumusat = gr.Checkbox(value=True, label="Player tracking and temporal smoothing")
-                v_calis = gr.Button("Generate bird's-eye video", variant="primary", size="lg")
-                v_ozet = gr.Markdown()
-            with gr.Column(scale=2):
-                v_sonuc = gr.Video(label="Bird's-eye video", autoplay=True)
+                v_ozet = gr.Markdown(elem_classes="ozet")
+            with gr.Column(scale=3):
+                v_sonuc = gr.Video(show_label=False, autoplay=True, height=560)
         v_calis.click(video_calistir, [v_hazir, v_yuklenen, v_bas, v_sure, v_model, v_oyuncu, v_fps, v_gorunum,
                                        v_yumusat], [v_sonuc, v_ozet])
 
-    with gr.Tab("Single frame · measured accuracy"):
-        gr.Markdown("The listed frames come from matches **never seen during training** and were annotated by "
-                    "hand, so the calibration error can be measured in metres. Pink: landmarks used for "
-                    "calibration; grey: rejected by RANSAC.")
+    with gr.Tab("Frame"):
         with gr.Row():
-            with gr.Column(scale=1):
-                hazir = gr.Dropdown(list(HAZIR), value=next(iter(HAZIR), None), label="Annotated frame")
-                yuklenen = gr.Image(label="…or upload an image (used if provided)", type="numpy", height=200)
-                with gr.Accordion("Advanced settings · model comparison", open=False):
+            with gr.Column(scale=1, min_width=300):
+                hazir = gr.Dropdown(list(HAZIR), value=next(iter(HAZIR), None), label="Frame (unseen match)")
+                with gr.Row():
+                    rastgele = gr.Button("Random")
+                    calis = gr.Button("Run", variant="primary")
+                with gr.Accordion("More options", open=False):
+                    yuklenen = gr.Image(label="Upload your own image", type="numpy", height=140)
                     model_ad = gr.Dropdown(list(SAHA_MODELLERI), value=next(iter(SAHA_MODELLERI)),
                                            label="Pitch landmark model")
                     oyuncu_ad = gr.Radio(list(OYUNCU_MODELLERI), value=next(iter(OYUNCU_MODELLERI)),
                                          label="Player detector")
                     esik = gr.Slider(0.1, 0.9, value=0.5, step=0.05, label="Landmark confidence threshold")
-                with gr.Row():
-                    rastgele = gr.Button("Random frame")
-                    calis = gr.Button("Run", variant="primary")
-                ozet = gr.Markdown()
-            with gr.Column(scale=2):
-                nokta_gorsel = gr.Image(label="1 · Detected pitch landmarks (id + confidence)")
-                sonuc = gr.Image(label="2 · Calibrated pitch lines and players → bird's-eye map")
+                ozet = gr.Markdown(elem_classes="ozet")
+            with gr.Column(scale=3):
+                sonuc = gr.Image(show_label=False)
+                nokta_gorsel = gr.Image(label="Detected pitch landmarks")
 
         girdiler = [hazir, yuklenen, model_ad, oyuncu_ad, esik]
         ciktilar = [nokta_gorsel, sonuc, ozet]
