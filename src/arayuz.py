@@ -228,8 +228,10 @@ def log(satirlar: list[tuple]) -> str:
 #   VURGU   #005fb8  vurgu rengi (seçili sekme, Run, odak)       DEGISKEN #001080  değişken → etiketler, anahtarlar
 #   SAYI    #098658  sayı → önemli sonuç                          YORUM    #008000  yorum → alt başlık
 #   HATA    #a31515  string/hata → uyarılar                       METIN    #3b3b3b  düz yazı
-VURGU, DEGISKEN, SAYI, YORUM, HATA = "#005fb8", "#001080", "#098658", "#008000", "#a31515"
-ZEMIN, METIN, SOLUK, CIZGI, SECIM = "#ffffff", "#3b3b3b", "#767676", "#e5e5e5", "#e8e8e8"
+# Zemin #b09cb5 (mor-gri): VS Code tonları bu zeminde okunmadığı için aynı rollerin koyu tonları
+# (metin kontrastı ≥ ~4:1).
+VURGU, DEGISKEN, SAYI, YORUM, HATA = "#003a75", "#001080", "#00422d", "#004000", "#6e0a0a"
+ZEMIN, METIN, SOLUK, CIZGI, SECIM = "#b09cb5", "#1f1f1f", "#4d4552", "#8c7891", "#9f8aa5"
 PEMBE = VURGU                              # eski ad: tema/CSS içinde vurgu rengi
 
 _t = dict(
@@ -238,7 +240,7 @@ _t = dict(
     block_background_fill=ZEMIN, block_border_color=ZEMIN, block_label_background_fill=ZEMIN,
     block_shadow="none", block_radius="0px", block_border_width="0px",
     block_label_text_color=SOLUK, block_title_text_color=METIN, border_color_primary=CIZGI,
-    border_color_accent=PEMBE, color_accent=PEMBE, color_accent_soft="#cce5ff",
+    border_color_accent=PEMBE, color_accent=PEMBE, color_accent_soft=SECIM,
     input_background_fill=ZEMIN, input_border_color=CIZGI, input_border_color_focus=PEMBE,
     button_primary_background_fill=ZEMIN, button_primary_background_fill_hover=ZEMIN,
     button_primary_text_color=PEMBE, button_primary_border_color=ZEMIN,
