@@ -32,7 +32,7 @@ import cv2
 import numpy as np
 
 import pitch
-from homografi import HomografiSonuc, noktalari_donustur
+from homografi import HomografiSonuc, isareti_duzelt, noktalari_donustur
 
 
 def _izgara(h: int, w: int) -> np.ndarray:
@@ -65,6 +65,10 @@ class HomografiFiltresi:
         H, _ = cv2.findHomography(self.izgara[ok], saha[ok], 0)
         if H is None:
             return None
+        # findHomography ölçeği H[2,2] = 1 yapar ve bu işareti ters çevirebilir (H ile −H aynı dönüşüm,
+        # ama noktalari_donustur işarete bakarak "kameranın arkası"nı eler → tüm noktalar NaN olur,
+        # harita boş kalır). Ufuk görüntüdeki karelerde yaşadığımız sorunun aynısı → işareti düzelt.
+        H = isareti_duzelt(H, self.izgara[ok])
         return HomografiSonuc(H, np.linalg.inv(H), kaynak.hata_metre, kaynak.hata_piksel,
                               kaynak.nokta_hatalari, kaynak.icerdeki)
 
@@ -118,7 +122,7 @@ class TakimAtayici:
     """
     kararli=True (varsayılan) — kararları KARE değil İZ (takip kimliği) düzeyinde verir:
       1) ROL KARARI: tespit modeli rolü (oyuncu/kaleci/hakem) her karede yeniden tahmin eder ve
-         arada yanılır. Rol, izin TÜM geçmişindeki tahminlerden asimetrik bir eşikle belirlenir
+         arada yanılır. Rol, izin son ~5 saniyesindeki tahminlerden asimetrik bir eşikle belirlenir
          (bkz. _rol): hakem birkaç karede "oyuncu" dense bile hakem kalır (haritada gizli).
       2) KAPANMA KONTROLÜ: kutusu başka kutuyla belirgin örtüşen oyuncunun o karedeki forma rengi
          (iki formanın karışımı) takım oylamasına KATILMAZ.
@@ -129,9 +133,12 @@ class TakimAtayici:
 
     def __init__(self, guncelleme: float = 0.05, diger_carpan: float = 3.5, oy: int = 30,
                  kararli: bool = True, fark: int = 4, rol_esik: float = 0.25, kaleci_m: float = 25.0,
-                 hakem_renk_m: float = 15.0):
+                 hakem_renk_m: float = 15.0, rol_pencere: int = 60):
         self.guncelleme, self.diger_carpan, self.kararli, self.fark = guncelleme, diger_carpan, kararli, fark
         self.rol_esik, self.kaleci_m, self.hakem_renk_m = rol_esik, kaleci_m, hakem_renk_m
+        # Rol, izin son 'rol_pencere' karesinden (12 fps'de ~5 sn) belirlenir: tüm geçmiş kullanılırsa
+        # takipçinin hakem↔oyuncu kimlik karışmasından sonra oyuncu izin sonuna kadar "hakem" kalırdı.
+        self.rol_pencere = rol_pencere
         self.kaleci_reddi = Counter()   # hangi kural kaç iz-karede "kaleci"yi düzeltti (sıfırlanmaz)
         self.hakem_rengi = None         # hakem forması rengi (Lab); aynı maçta sahne kesmesinde de geçerli
         self.oy = oy if kararli else 15
@@ -144,7 +151,7 @@ class TakimAtayici:
         self.merkez = None       # (2, 3) Lab
         self.yayilim = None      # takım içi tipik renk uzaklığı
         self.oylar: dict[int, deque] = {}
-        self.rol_sayac: dict[int, Counter] = {}
+        self.rol_gecmis: dict[int, deque] = {}
         self.renk_ort: dict[int, np.ndarray] = {}   # iz → ortalama forma rengi (Lab, kapanmasız kareler)
         self.secili: dict[tuple, str] = {}       # (tür, iz) → şu an gösterilen etiket (histerezis için)
 
@@ -152,7 +159,7 @@ class TakimAtayici:
         """
         ASİMETRİK ROL KURALI. Val karelerinde (v3 modeli): gerçek oyuncuya %6 "hakem", %7 "kaleci"
         deniyor; gerçek hakeme %74 "hakem", kaleciye %57 "kaleci". Model rolü KAÇIRMAYA yatkın ama
-        nadiren UYDURUYOR → çoğunluk oyu hakemleri oyuncu sayar. Kural: izin tüm geçmişinde en az
+        nadiren UYDURUYOR → çoğunluk oyu hakemleri oyuncu sayar. Kural: izin son penceresinde en az
         'rol_esik' oranında (ve en az 3 kez) hakem denmişse hakem; kaleci için aynı. Oyuncunun yanlış
         tahmin oranı (%6–7) bu eşiğin çok altında → 30 karelik bir oyuncu izinin eşiği tesadüfen
         aşma olasılığı çok küçük (binom).
@@ -184,11 +191,11 @@ class TakimAtayici:
         Hakem ve kaleci ikisi de takımlardan farklı renk giyer; model ikisini karıştırabilir.
         Üç futbol bilgisi kullanılır (sırayla):
           a) KONUM: kaleci kendi ceza sahası çevresindedir. Kaleye 'kaleci_m' metreden uzakta
-             "kaleci" denen kişi → diger (gizli).
+             "kaleci" denen kişi → hakem (gizli).
           b) HAKEM RENGİ: güvenle hakem denen izlerin forma renginden bir "hakem rengi" öğrenilir
              (sahne boyunca). Rengi buna 'hakem_renk_m' (Lab) mesafeden yakın "kaleci" → hakem.
           c) BENZERSİZLİK: her yarı sahada en fazla bir kaleci olur. Birden fazla aday varsa
-             kale çizgisine EN YAKIN olan kaleci kalır, diğerleri → diger.
+             kale çizgisine EN YAKIN olan kaleci kalır, diğerleri → diger (soluk gösterilir).
         """
         hakem_renk = [self.renk_ort[t.ek["id"]] for t in kisiler
                       if t.sinif == "hakem" and t.ek.get("id") in self.renk_ort]
@@ -199,7 +206,7 @@ class TakimAtayici:
             if t.sinif != "kaleci" or t.saha is None:
                 continue
             if self.kaleci_m < t.saha[0] < pitch.SAHA_UZUNLUK - self.kaleci_m:               # (a)
-                t.sinif = "diger"
+                t.sinif = "hakem"           # orta sahadaki "kaleci" neredeyse her zaman hakemdir → gizli
                 self.kaleci_reddi["konum"] += 1
                 continue
             renk = self.renk_ort.get(t.ek.get("id"))
@@ -226,9 +233,9 @@ class TakimAtayici:
             for t, kp in zip(kisiler, kap):                                 # 1) rol kararı (izin tüm geçmişi)
                 tid = t.ek.get("id")
                 if tid is not None:
-                    say = self.rol_sayac.setdefault(tid, Counter())
-                    say[t.sinif] += 1
-                    t.sinif = self._rol(say)
+                    gecmis = self.rol_gecmis.setdefault(tid, deque(maxlen=self.rol_pencere))
+                    gecmis.append(t.sinif)
+                    t.sinif = self._rol(Counter(gecmis))
                     if t.renk_bgr is not None and not kp:                   # izin ortalama forma rengi
                         lab = self._lab(t.renk_bgr)
                         m = self.renk_ort.get(tid)

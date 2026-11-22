@@ -179,7 +179,7 @@ def video_karesi_ciz(img: np.ndarray, kal, tespitler: list, oyuncular: list[dict
         harita = cv2.addWeighted(katman, 0.15, harita, 0.85, 0)
     if iz:                                      # son ~1.5 sn'lik hareket izi
         for o in oyuncular:
-            if o.get("sinif") not in pitch.HARITADA_GIZLI | {"top"} and len(o.get("iz", [])) > 1:
+            if o.get("sinif") not in pitch.HARITADA_GIZLI | pitch.HARITADA_SOLUK | {"top"} and len(o.get("iz", [])) > 1:
                 p = np.array([pitch.metre_to_piksel(x, y) for x, y in o["iz"]], np.int32)
                 renk = tuple(int(c) for c in (o.get("renk") or (200, 200, 200)))
                 cv2.polylines(harita, [p], False, renk, 2, cv2.LINE_AA)

@@ -250,10 +250,12 @@ TAKIM_RENK = {
 
 
 # Kuş bakışı haritada GÖSTERİLMEYEN sınıflar: hakem ve yan hakemler oyunun parçası değil,
-# haritada sadece kalabalık yapar. "diger": forma rengi iki takıma da uymayan, rolü belirsiz kişi
-# (çoğunlukla tanınamamış hakem) ya da orta sahada "kaleci" sanılan hakem.
-# Görüntü tarafında kutuları yine çizilir (tespit kontrolü için).
-HARITADA_GIZLI = {"hakem", "diger", "oyuncu"}   # "oyuncu": henüz takıma atanmamış (yeni iz) → gri nokta yerine gizli
+# haritada sadece kalabalık yapar. Görüntü tarafında kutuları yine çizilir (tespit kontrolü için).
+HARITADA_GIZLI = {"hakem"}
+# SOLUK gösterilenler: rolü/takımı belirsiz kişiler — "diger" (rengi iki takıma da uymuyor) ve "oyuncu"
+# (henüz takıma atanmamış yeni iz). Bunlar çoğunlukla oyuncudur; tamamen gizlemek oyuncu kaybettirir,
+# takım rengiyle göstermek yanlış bilgi verir → küçük, soluk gri nokta.
+HARITADA_SOLUK = {"diger", "oyuncu"}
 
 
 def oyunculari_ciz(img: np.ndarray, oyuncular: list[dict],
@@ -266,8 +268,14 @@ def oyunculari_ciz(img: np.ndarray, oyuncular: list[dict],
                (ör. görüntüden ölçülen gerçek forma rengi).
     """
     out = img.copy()
+    soluk = out.copy()
+    for o in oyuncular:                     # önce soluk (belirsiz) noktalar, yarı saydam
+        if o.get("sinif") in HARITADA_SOLUK:
+            p = metre_to_piksel(o["x"], o["y"], ayar)
+            cv2.circle(soluk, p, 6, (190, 190, 190), -1, cv2.LINE_AA)
+    out = cv2.addWeighted(soluk, 0.6, out, 0.4, 0)
     for o in oyuncular:
-        if o.get("sinif") in HARITADA_GIZLI:
+        if o.get("sinif") in HARITADA_GIZLI | HARITADA_SOLUK:
             continue
         p = metre_to_piksel(o["x"], o["y"], ayar)
         renk = o.get("renk") or TAKIM_RENK.get(o.get("sinif", "takim_A"), (128, 128, 128))

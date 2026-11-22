@@ -127,7 +127,7 @@ out in HSV, median colour, K-means (k = 2) in Lab space; the map shows each team
     3 m, the new `H` is discarded; if 3 consecutive rejected estimates agree with each other, they are
     accepted as genuine camera motion.
   * *Smoothing in point space*: the projected grid positions are averaged exponentially (α = 0.5) and `H`
-    is re-estimated from the averaged correspondences. This replaces the earlier element-wise averaging of
+    is re-estimated from the averaged correspondences (followed by sign normalisation, see results §8.2). This replaces the earlier element-wise averaging of
     `H` matrices (α = 0.3), which has no geometric meaning and proved unstable on one validation clip (§8 of
     the results).
   * If no homography is found, the previous one is reused for up to 6 sampled frames; otherwise the frame is
@@ -144,9 +144,11 @@ out in HSV, median colour, K-means (k = 2) in Lab space; the map shows each team
 * **Track-level role and team assignment** (`TakimAtayici`). Decisions are made per track, not per frame:
   * *Asymmetric role rule*: on validation frames the detector calls 74 % of referees "referee" but only
     6 % of players; it tends to miss roles rather than invent them. A track is a referee (or goalkeeper) if at
-    least 25 % (and ≥ 3) of all its predictions say so; otherwise a player. A majority vote would turn
+    least 25 % (and ≥ 3) of its predictions in the last 60 frames (~5 s) say so; otherwise a player. The window
+    lets a track recover after an identity switch between a referee and a player. A majority vote would turn
     referees recognised in only 20–45 % of frames into players.
-  * *Goalkeeper vs. referee*: (a) a "goalkeeper" farther than 25 m from both goal lines is hidden;
+  * *Goalkeeper vs. referee*: (a) a "goalkeeper" farther than 25 m from both goal lines is treated as a
+    referee;
     (b) a referee jersey colour is learnt from confidently recognised referees, and a "goalkeeper" whose
     colour lies within 15 Lab units of it becomes a referee; (c) at most one goalkeeper per half — the one
     closest to the goal line.
@@ -157,7 +159,8 @@ out in HSV, median colour, K-means (k = 2) in Lab space; the map shows each team
     centres is labelled *other*. Keeping the centres across shots was tried and rejected: lighting changes
     between cameras turned one team into *other*.
   * *Hysteresis*: a displayed team label changes only when the new candidate leads the current one by 4 votes.
-  * Referees, *other* and not yet assigned players are not drawn on the map.
+  * Referees are not drawn on the map. *Other* and not yet assigned players are drawn as small faint grey
+    points: they are mostly players, so hiding them would lose players, and a team colour would be wrong.
 * **Scene cropping** (default): frames without a homography are removed from the output video, and mapped
   segments shorter than 1 s are dropped, so the result plays as a continuous bird's-eye video
   (`--kirpma` restores full-length output with a "pitch not visible" panel).

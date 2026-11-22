@@ -286,6 +286,49 @@ confusion rates), so the numbers are not an independent held-out evaluation. Pro
 green-hue mask failed on yellowish grass and made both teams' colours collapse onto the grass colour; keeping
 team colours across shots was tried and reverted.
 
+### 8.2 Player map accuracy (end-to-end, video pipeline)
+
+The goal of the project is the position of the **players**. This experiment checks what the complete video
+pipeline (homography filter, tracking, smoothing, role and team rules) actually draws on the map, against
+manual ground truth (`src/oyuncu_harita_olc.py`, `results/oyuncu_harita.json`):
+
+* frames: the 27 validation and test frames that carry both box and keypoint annotations;
+* the video is started ~4 s before the annotated second, so tracking and smoothing arrive "warm" at exactly
+  that frame (verified by pixel difference to the annotated image);
+* ground truth: foot points of the manually drawn boxes, projected with the homography from the manually
+  annotated keypoints (no model involved);
+* prediction: all points the pipeline draws on the map (referees and ball excluded, faint points included);
+  Hungarian matching with a 3 m gate.
+
+| Configuration | Players found | … in team colour | Referees visible ↓ | Spurious points ↓ | Position error (median) |
+|---|---|---|---|---|---|
+| A: COCO detector, per-frame assignment (previous system) | **83.0 %** | 98.3 % | 79.4 % | 20.7 % | **0.45 m** |
+| C: own detector, per-frame assignment | 82.3 % | 95.2 % | 35.3 % | 19.4 % | 0.49 m |
+| **B: own detector + track-level rules (current)** | 81.9 % | 98.3 % | **32.4 %** | **18.6 %** | 0.49 m |
+
+(27 frames, 470 players, 34 referees. 25 of the frames were never looked at while developing the video rules;
+on those the numbers differ by less than 1.5 points.)
+
+* **Players:** about 82 % of the players are on the map, within 3 m and with a median error of about half a
+  metre. The detector and the rules hardly change this; the remaining misses come mostly from the keypoint
+  stage (one very wide frame with an 8.7 m homography error loses all 22 players) and from players at the image
+  border.
+* **Referees:** the own detector and the rules reduce visible referees from 79 % to 32 %. The remaining third
+  are mostly shown as faint "uncertain" points rather than as team players.
+* **Spurious points** (~19 %): points without a ground-truth person within 3 m — partly people not
+  annotated (half-visible players at the border), partly tracks held at their last position after
+  disappearing, partly positions more than 3 m off.
+* The position error is about 0.04 m higher with the own detector; the ground-truth boxes kept the COCO
+  coordinates in 92 % of cases (annotation bias, §6), so this small difference is not interpretable.
+
+**A bug found by this measurement.** The first run showed four frames with a correct single-frame homography
+(0.3–0.75 m) but an empty map. Cause: the homography filter re-estimates `H` with `cv2.findHomography`, which
+normalises `H[2,2] = 1` and can flip the sign of `H`; the projection code interprets negative depth as "behind
+the camera" and discards all points. The sign normalisation (`isareti_duzelt`) used elsewhere had not been
+applied in the filter. After the fix, players found rose from 67–69 % to 82–83 % for all configurations. The
+stability measurements of §8 and §8.1 (test clips 04, 11, 12) were re-run and are unchanged — the sign flip did
+not occur in those clips.
+
 ## 9. Video demo
 
 Juventus – Inter highlight (test match 12), 15 s at 12 processed fps: 104 of 180 frames mapped (58 %; the
