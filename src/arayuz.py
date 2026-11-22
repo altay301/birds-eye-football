@@ -139,10 +139,9 @@ def calistir(hazir_ad, yuklenen, model_ad, oyuncu_ad, esik):
         img = oku(g)
         etiket_yolu = ETIKET / g.parent.name / f"{g.stem}.json"
     else:
-        return None, None, log("frame", [("error", "select a frame or upload an image", "uyari")])
+        return None, None, log([("", "Select a frame or upload an image.", "uyari")])
     if img is None:
-        return None, None, log("frame", [("error", "image could not be read", "uyari")])
-    kaynak = f'--input "{Path(yuklenen).name}"' if yuklenen else f'"{hazir_ad}"'
+        return None, None, log([("", "The image could not be read.", "uyari")])
 
     model = saha_modeli(model_ad, round(min(0.9, max(0.1, float(esik or 0.5))), 2))
     noktalar = model.tahmin(img)
@@ -150,21 +149,21 @@ def calistir(hazir_ad, yuklenen, model_ad, oyuncu_ad, esik):
     nokta_gorsel = cv2.cvtColor(noktalari_ciz(img, noktalar, kal), cv2.COLOR_BGR2RGB)
 
     if kal is None:
-        return nokta_gorsel, None, log(f"frame {kaynak}", [
-            ("landmarks", f"{len(noktalar)}/35"),
-            ("view", "not a main-camera view — try another frame", "uyari")])
+        return nokta_gorsel, None, log([
+            ("Landmarks", f"{len(noktalar)} of 35"),
+            ("", "Not a main-camera view. Try another frame.", "uyari")])
 
     birlesik, sahadakiler, kal = sonuc_uret(img, noktalar, kal=kal, yolo=OYUNCU_MODELLERI[oyuncu_ad])
     ic = int(kal.icerdeki.sum()) if kal.icerdeki is not None else len(noktalar)
     oyuncu = sum(t.sinif != "top" for t in sahadakiler)
 
-    satirlar = [("landmarks", f"{len(noktalar)}/35 detected · {ic} used"),
-                ("players", f"{oyuncu} on the pitch")]
+    satirlar = [("Landmarks", f"{len(noktalar)} of 35 found, {ic} used"),
+                ("Players", f"{oyuncu} on the pitch")]
     if etiket_yolu is not None:
         h = gercek_hata(etiket_yolu, kal.H)
         if h is not None:
-            satirlar.append(("error", f"{h[0]:.2f} m (vs. manual)", "vurgu"))
-    return nokta_gorsel, cv2.cvtColor(birlesik, cv2.COLOR_BGR2RGB), log(f"frame {kaynak}", satirlar)
+            satirlar.append(("Accuracy", f"{h[0]:.2f} m vs. hand annotation", "vurgu"))
+    return nokta_gorsel, cv2.cvtColor(birlesik, cv2.COLOR_BGR2RGB), log(satirlar)
 
 
 def video_sureleri() -> dict[str, Path]:
@@ -192,45 +191,40 @@ def video_calistir(hazir_ad, yuklenen, bas, sure, model_ad, oyuncu_ad, hedef_fps
     from sistem import video_isle
     yol = Path(yuklenen) if yuklenen else VIDEOLAR.get(hazir_ad)
     if yol is None:
-        return None, log("video", [("error", "select a match or upload a video", "uyari")])
-    kaynak = f'--input "{yol.name}"' if yuklenen else f'"{hazir_ad.split(" · ")[0]}"'
-    komut = f"video {kaynak} --start {int(bas)} --duration {int(sure)}"
+        return None, log([("", "Select a match or upload a video.", "uyari")])
     hedef_fps = min(25, max(4, int(hedef_fps or 12)))
-    yumusat = yumusat == "on"
+    yumusat = yumusat == "On"
     ilerleme(0, desc="Loading models…")
     model = saha_modeli(model_ad, 0.5)
     cikti = VIDEO_CIKTI / f"{yol.stem[:40]}_{int(bas)}s_{time.strftime('%H%M%S')}.mp4"
     s = video_isle(model, yol, cikti, bas=float(bas), sure=float(sure), hedef_fps=float(hedef_fps),
-                   yolo=OYUNCU_MODELLERI[oyuncu_ad], sadece_harita=gorunum.startswith("map"),
+                   yolo=OYUNCU_MODELLERI[oyuncu_ad], sadece_harita=gorunum.startswith("Map"),
                    yumusat=bool(yumusat), top_goster=False, kirp=True,
                    ilerleme=lambda o, m: ilerleme(o, desc=m))
     if not s["yol"]:
-        return None, log(komut, [("result", "no main-camera play in this interval — try another --start"
-                                  if s["islenen"] else "video unreadable or interval out of range", "uyari")])
-    return s["yol"], log(komut, [
-        ("input", f"{s['video_sn']:.0f} s · {s['islenen']} frames · {s['kesme'] + 1} "
+        return None, log([("", "No main-camera play in this interval. Try another start time."
+                                  if s["islenen"] else "The video could not be read, or the interval is outside it.", "uyari")])
+    return s["yol"], log([
+        ("Input", f"{s['video_sn']:.0f} s, {s['islenen']} frames, {s['kesme'] + 1} "
                   f"shot{'s' if s['kesme'] else ''}"),
-        ("output", f"{s['cikti_sn']:.0f} s of live play", "vurgu"),
-        ("time", f"{s['sure_sn']:.0f} s"),
+        ("Output", f"{s['cikti_sn']:.0f} s of live play", "vurgu"),
+        ("Time", f"{s['sure_sn']:.0f} s"),
     ])
 
 
-def log(komut: str, satirlar: list[tuple]) -> str:
-    """Terminal çıktısı gibi: '$ komut' + hizalı 'anahtar  değer' satırları + 'done'."""
+def log(satirlar: list[tuple]) -> str:
+    """Sade metin çıktısı: hizalı 'Anahtar  değer' satırları (anahtar boşsa sadece cümle)."""
     import html
-    out = [f'<span class="pr">$</span> {html.escape(komut)}']
+    out = []
     for s in satirlar:
         k, v, sinif = (*s, "") if len(s) == 2 else s
-        out.append(f'  <span class="k">{k:<10}</span><span class="{sinif}">{html.escape(v)}</span>')
-    out.append('<span class="ok">done.</span>' if not any(len(s) > 2 and s[2] == "uyari" for s in satirlar)
-               else "")
+        out.append((f'<span class="k">{k:<10}</span>' if k else "") + f'<span class="{sinif}">{html.escape(v)}</span>')
     return '<pre class="log">' + "\n".join(out) + "</pre>"
 
 
 # --- Görünüm: beyaz zemin, siyah yazı, pembe vurgu; yalnızca metin -----------------------------------
-# Terminal gibi: her şey eş aralıklı yazı; kutu, gölge, ikon, kaydırıcı, onay kutusu yok. Etiketler komut
-# satırı bayrağı (--match), seçenekler açılır metin listesi, düğmeler köşeli parantezli komut ([ run ]),
-# dosya yükleme de bir metin komutu ([ upload ]). Çıktı '$ komut' + hizalı satırlar. Pembe = istem/vurgu.
+# Görünüş terminal gibi (eş aralıklı yazı; kutu, gölge, ikon, kaydırıcı, onay kutusu yok; düğmeler ve dosya
+# yükleme düz metin), ama metinler sade İngilizce. Çıktı hizalı 'Anahtar  değer' satırları. Pembe = vurgu.
 PEMBE = "#e0136f"                          # beyaz zeminde okunur koyuluk
 ZEMIN, METIN, SOLUK, CIZGI = "#ffffff", "#111111", "#8a8a8a", "#d0d0d0"
 
@@ -305,41 +299,41 @@ button.primary:hover, button.secondary:hover {{ text-decoration: underline; }}
 """
 
 BASLIK = """
-<div id="baslik"><span class="pr">PS&gt;</span> birds-eye-football
-<span class="yorum"># broadcast footage → top-down player map</span></div>
+<div id="baslik">Bird's-Eye Football
+<span class="yorum">Broadcast footage to a top-down player map</span></div>
 """
 
 
 def _yuklendi(yol, tur: str):
     """Metin düğmesiyle yüklenen dosya: yolu sakla, terminal satırı yaz."""
     if not yol:
-        return None, log(f"{tur} --input", [("error", "no file", "uyari")])
-    return str(yol), log(f'{tur} --input "{Path(yol).name}"', [("loaded", "ready — run to process")])
+        return None, log([("", "No file selected.", "uyari")])
+    return str(yol), log([("Loaded", Path(yol).name), ("", "Press Run to process it.")])
 
 
 with gr.Blocks(title="Bird's-Eye Football") as demo:
     gr.HTML(BASLIK)
-    with gr.Tab("video"):
+    with gr.Tab("Video"):
         with gr.Row():
             with gr.Column(scale=1, min_width=320):
                 v_hazir = gr.Dropdown(list(VIDEOLAR), value=next((k for k in VIDEOLAR if "Manchester" in k),
                                                                   next(iter(VIDEOLAR), None)),
-                                      label="--match")
+                                      label="Match")
                 with gr.Row():
-                    v_bas = gr.Number(value=60, minimum=0, label="--start", min_width=80)
-                    v_sure = gr.Number(value=30, minimum=5, maximum=300, label="--duration", min_width=80)
+                    v_bas = gr.Number(value=60, minimum=0, label="Start (s)", min_width=80)
+                    v_sure = gr.Number(value=30, minimum=5, maximum=300, label="Duration (s)", min_width=80)
                 with gr.Row():
-                    v_calis = gr.Button("[ run ]", variant="primary", min_width=60)
-                    v_yukle = gr.UploadButton("[ upload ]", file_types=["video"], type="filepath", min_width=60)
-                with gr.Accordion("--options", open=False):
-                    v_gorunum = gr.Dropdown(["side-by-side", "map-only"], value="side-by-side", label="--layout")
+                    v_calis = gr.Button("Run", variant="primary", min_width=60)
+                    v_yukle = gr.UploadButton("Upload", file_types=["video"], type="filepath", min_width=60)
+                with gr.Accordion("More options", open=False):
+                    v_gorunum = gr.Dropdown(["Side by side", "Map only"], value="Side by side", label="Layout")
                     v_model = gr.Dropdown(list(SAHA_MODELLERI), value=next(iter(SAHA_MODELLERI)),
-                                          label="--landmarks")
+                                          label="Pitch model")
                     v_oyuncu = gr.Dropdown(list(OYUNCU_MODELLERI), value=next(iter(OYUNCU_MODELLERI)),
-                                           label="--detector")
-                    v_fps = gr.Number(value=12, minimum=4, maximum=25, step=1, label="--fps")
-                    v_yumusat = gr.Dropdown(["on", "off"], value="on", label="--track")
-                v_ozet = gr.HTML(log("video --help", [("ready", "pick a match, then run")]))
+                                           label="Player detector")
+                    v_fps = gr.Number(value=12, minimum=4, maximum=25, step=1, label="Frames per second")
+                    v_yumusat = gr.Dropdown(["On", "Off"], value="On", label="Tracking and smoothing")
+                v_ozet = gr.HTML(log([("", "Pick a match and press Run.")]))
                 v_yuklenen = gr.State(None)
             with gr.Column(scale=3):
                 v_sonuc = gr.Video(show_label=False, autoplay=True, height=560, elem_id="cikti")
@@ -348,20 +342,20 @@ with gr.Blocks(title="Bird's-Eye Football") as demo:
         v_yukle.upload(lambda y: _yuklendi(y, "video"), v_yukle, [v_yuklenen, v_ozet])
         v_hazir.change(lambda: None, None, v_yuklenen)        # listeden seçilince yüklenen dosya bırakılır
 
-    with gr.Tab("frame"):
+    with gr.Tab("Frame"):
         with gr.Row():
             with gr.Column(scale=1, min_width=320):
-                hazir = gr.Dropdown(list(HAZIR), value=next(iter(HAZIR), None), label="--frame  # unseen match")
+                hazir = gr.Dropdown(list(HAZIR), value=next(iter(HAZIR), None), label="Frame from an unseen match")
                 with gr.Row():
-                    calis = gr.Button("[ run ]", variant="primary", min_width=60)
-                    rastgele = gr.Button("[ random ]", min_width=60)
-                    yukle = gr.UploadButton("[ upload ]", file_types=["image"], type="filepath", min_width=60)
-                with gr.Accordion("--options", open=False):
+                    calis = gr.Button("Run", variant="primary", min_width=60)
+                    rastgele = gr.Button("Random", min_width=60)
+                    yukle = gr.UploadButton("Upload", file_types=["image"], type="filepath", min_width=60)
+                with gr.Accordion("More options", open=False):
                     model_ad = gr.Dropdown(list(SAHA_MODELLERI), value=next(iter(SAHA_MODELLERI)),
-                                           label="--landmarks")
+                                           label="Pitch model")
                     oyuncu_ad = gr.Dropdown(list(OYUNCU_MODELLERI), value=next(iter(OYUNCU_MODELLERI)),
-                                            label="--detector")
-                    esik = gr.Number(value=0.5, minimum=0.1, maximum=0.9, step=0.05, label="--threshold")
+                                            label="Player detector")
+                    esik = gr.Number(value=0.5, minimum=0.1, maximum=0.9, step=0.05, label="Confidence threshold")
                 ozet = gr.HTML()
                 yuklenen = gr.State(None)
             with gr.Column(scale=3):
