@@ -26,7 +26,8 @@ from keypoint_tahmin import KARE_KLASOR, ETIKET_KLASOR, degerlendir, model_yukle
 
 PROJE = Path(__file__).resolve().parent.parent
 SONUC = PROJE / "results" / "deneyler.json"
-GRUPLAR = {"val": {"02", "10", "19"}, "test_04": {"04"}, "test_onerisiz": {"11", "12"}}
+GRUPLAR = {"val": {"02", "10", "19"}, "test_04": {"04"}, "test_onerisiz": {"11", "12"},
+           "test_yeni": {"20"}}   # sonradan eklenen, geliştirmede hiç görülmemiş maç (640×360)
 
 
 def ciftler(grup: str):
@@ -43,6 +44,8 @@ def tablo(sonuclar: dict):
     print(f"{'model':28s} {'grup':14s} {'bulunan':>8s} {'PCK@5':>7s} {'PCK@10':>7s} {'medyan m':>9s} {'<1 m':>6s}")
     for ad, gruplar in sonuclar.items():
         for g, s in gruplar.items():
+            if not s:                       # o grupta henüz etiket yok
+                continue
             m = s.get("metre_hata_medyan")
             print(f"{ad:28s} {g:14s} {s['bulunan_oran']:8.1%} {s['PCK@5px']:7.1%} {s['PCK@10px']:7.1%} "
                   f"{(f'{m:.2f}' if m is not None else '-'):>9s} {s.get('basari_1m_oran', 0):6.1%}")

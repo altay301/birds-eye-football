@@ -1,4 +1,4 @@
-﻿dosya_adi;mac;skor;turnuva;mac_tarihi;stadyum;saha_boyutu_m;cozunurluk;fps;sure_dk;kanal;kaynak;kume;not
+dosya_adi;mac;skor;turnuva;mac_tarihi;stadyum;saha_boyutu_m;cozunurluk;fps;sure_dk;kanal;kaynak;kume;not
 01_tccO12GkrGI.mp4;Fransa - Türkiye;2-1;UEFA Uluslar Ligi;2026-11 (video 2026-11-16);Matmut Atlantique, Bordeaux;105x68;1920x1080;50;8.0;FFF;https://www.youtube.com/watch?v=tccO12GkrGI;train;ornek1 ve ornek2 bu maçtan
 02_nagW6n39jCs.mp4;Türkiye - Belçika;1-2;UEFA Uluslar Ligi?;2026-11 (video 2026-11-13);İzmir (stadyum ?);?;1920x1080;25;10.6;Royal Belgian FA;https://www.youtube.com/watch?v=nagW6n39jCs;val;stadyum doğrulanmalı
 03_ytYYMJ8D_xA.mp4;Beşiktaş - Giresunspor;0-4;Süper Lig 2021/22 14. hafta;2021-11 (video 2022-07-06);Vodafone Park, İstanbul;105x68;1920x1080;25;4.1;beIN SPORTS Türkiye;https://www.youtube.com/watch?v=ytYYMJ8D_xA;train;
@@ -18,3 +18,4 @@
 17_Y1KhoHz4eWQ.mp4;Everton - Chelsea;0-0;Premier League 2024/25;2024-12-22;Goodison Park, Liverpool;100x68;1920x1080;25;2.1;Everton FC;https://www.youtube.com/watch?v=Y1KhoHz4eWQ;train;saha 105x68 DEĞİL
 18_9v4YjymHBoU.mp4;Sunderland - Chelsea;1-0;Premier League 2026/27;2026-11 (video 2026-11-09);Stadium of Light, Sunderland;105x68;1920x1080;25;8.8;Chelsea FC;https://www.youtube.com/watch?v=9v4YjymHBoU;train;golü 14'teki derlemede olabilir
 19_-LHb5yN-OzI.mp4;Arjantin - Mısır;3-2;FIFA Dünya Kupası 2026;2026-07 (video 2026-07-08);? (Dünya Kupası 2026 stadı);105x68;1920x1080;30;2.2;FIFA;https://www.youtube.com/watch?v=-LHb5yN-OzI;val;
+20_deneme.mp4;Manchester United - Manchester City;0-1;Premier League 2026/27 4. hafta;2026/27;Old Trafford, Manchester;105x68;1920x1080;25;5.5;beIN SPORTS Türkiye;https://www.youtube.com/watch?v=9yWCI8Y3w5w;test;sonradan eklenen bağımsız test maçı (eğitimde ve geliştirmede hiç kullanılmadı)

@@ -49,6 +49,8 @@ KUTU = PROJE / "data" / "labels" / "kutular"
 NOKTA = PROJE / "data" / "labels" / "noktalar"
 VIDEO = PROJE / "data" / "raw_videos"
 ISINMA_SN, KAPI_M, HEDEF_FPS = 4.0, 3.0, 12
+YENI_MACLAR = {"20_deneme"}
+KUMELER = {"val", "test"}          # --yeni ile {"yeni"}: sadece sonradan eklenen bağımsız maç
 GELISTIRMEDE_GORULEN = {"12_gxsTs2qtV8A_t00090.0", "11_gsDyRUL4KX0_t00106.0"}   # video kuralı kliplerine düşen kareler
 YAPILANDIRMA = {"A_onceki": ("yolov8m.pt", False, None), "C_kendi_model": ("tespit_futbol_v3_1536.pt", False, None),
                 "B_sabit_yumusatma": ("tespit_futbol_v3_1536.pt", True, None),
@@ -60,7 +62,9 @@ def kareler():
     out = []
     for e in sorted(KUTU.glob("*/*.json")):
         kume = bolme[e.parent.name]
-        if kume not in ("val", "test"):
+        if e.parent.name in YENI_MACLAR:
+            kume = "yeni"                    # sonradan eklenen bağımsız maç: ayrı raporlanır
+        if kume not in KUMELER:
             continue
         n = json.loads((NOKTA / e.parent.name / e.name).read_text(encoding="utf-8"))["noktalar"]
         try:
@@ -109,6 +113,12 @@ def eslestir(tahmin: np.ndarray, gercek: np.ndarray):
 
 
 def main():
+    import argparse
+    global KUMELER
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--yeni", action="store_true", help="sadece sonradan eklenen bağımsız maç (maç 20)")
+    if ap.parse_args().yeni:
+        KUMELER = {"yeni"}
     model = model_yukle(str(PROJE / "models" / "unet_kp_gercek_v1.pt"))
     kk = kareler()
     sonuc = {"kareler": [], "ozet": {}}
@@ -158,7 +168,8 @@ def main():
                   f"{o['takim_renginde']:14.1%} {o['hakem_gorunme']:13.1%} {o['sahte_nokta']:11.1%} "
                   f"{(o['konum_hatasi_medyan_m'] or float('nan')):9.2f}")
     print(f"\nHizalı kare: {len({s['kare'] for s in hizali})} / {len(kk)} (piksel farkı < 20)")
-    (PROJE / "results" / "oyuncu_harita.json").write_text(json.dumps(sonuc, indent=2, ensure_ascii=False), encoding="utf-8")
+    ad = "oyuncu_harita_yeni.json" if KUMELER == {"yeni"} else "oyuncu_harita.json"
+    (PROJE / "results" / ad).write_text(json.dumps(sonuc, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 if __name__ == "__main__":

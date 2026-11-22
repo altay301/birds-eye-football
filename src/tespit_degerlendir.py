@@ -94,11 +94,18 @@ def calisma_noktasi(kareler):
     return {"recall": tp / max(n_r, 1), "precision": tp / max(n_t, 1)}
 
 
+YENI_MACLAR = {"20_deneme"}   # sonradan eklenen bağımsız test maçı: eski test sonuçlarına karışmasın
+
+
 def test_kareleri(kume: str = "test"):
+    """kume: train / val / test (eski test maçları) / yeni (sonradan eklenen bağımsız maç)."""
     bolme = json.loads((PROJE / "data" / "bolme.json").read_text(encoding="utf-8"))
     out = []
     for e in sorted(KUTU.glob("*/*.json")):
-        if bolme.get(e.parent.name) != kume:
+        if kume == "yeni":
+            if e.parent.name not in YENI_MACLAR:
+                continue
+        elif bolme.get(e.parent.name) != kume or e.parent.name in YENI_MACLAR:
             continue
         d = json.loads(e.read_text(encoding="utf-8"))
         n = json.loads((NOKTA / e.parent.name / e.name).read_text(encoding="utf-8"))["noktalar"]
