@@ -73,7 +73,7 @@ zoom; occluded proposals are deleted.
 08, 09, 13–18). Model predictions with confidence ≥ 0.5 are filtered by RANSAC (only inliers with
 < 1 m reprojection error are kept), inspected visually, and then reviewed frame by frame by the human
 annotator (`etiketle.py --kontrol`). During review, 33 missing keypoints were added in 19 of 91 frames.
-This mode was used with the approval of the course instructors and is never used for test matches.
+This mode is never used for test matches.
 
 ## 5. Quality control
 

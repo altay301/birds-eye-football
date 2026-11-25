@@ -67,7 +67,7 @@ Monte-Carlo uncertainty exceeds 3 px are not suggested). **11 + 12 is the headli
 
 Automatic pre-labels: model suggestion → only RANSAC inliers with < 1 m error kept → visual check → human
 review (`etiketle.py --kontrol`); the human added 33 missing points in 19 of 91 reviewed frames.
-This procedure was approved by the course staff and is reported transparently.
+This procedure is reported transparently and is never used for test matches.
 
 Automatic QA (`src/etiket_kontrol.py`): every label set is checked for homography consistency; points with
 > 1.5 m reprojection error are flagged for review (typically a wrong keypoint ID).

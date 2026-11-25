@@ -206,9 +206,9 @@ data/       match-level split (bolme.json) and list of video sources (raw_videos
 The source videos are publicly available highlight videos; their URLs, competitions and venues are listed
 in `data/raw_videos/kaynaklar.csv`. Broadcast footage and frames are copyrighted by the broadcasters and
 are not redistributed. The annotations and trained weights are available to the course instructors on
-request. Synthetic data can be regenerated with the provided generator. The pre-labelling procedure used
-for part of the training and validation data (§3) was approved by the course instructors; every
-annotation file records the mode by which it was produced.
+request. Synthetic data can be regenerated with the provided generator. For part of the training and validation
+data a pre-labelling procedure was used (§3); every annotation file records the mode by which it was
+produced.
 
 ## References
 
